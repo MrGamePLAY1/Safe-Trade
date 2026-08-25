@@ -66,7 +66,7 @@ function page_footer(): void
   <div class="wrap foot-grid">
     <div>
       <span class="plate plate-sm"><span class="plate-band">IRL</span><span class="plate-no">SAFE·TRADE</span></span>
-      <p class="foot-tag">The full file on every car.</p>
+      <!-- <p class="foot-tag">The full file on every car.</p> -->
     </div>
     <div>
       <h4>Marketplace</h4>

@@ -34,9 +34,9 @@ page_header('Buy and sell cars with the full paperwork', 'home');
   <div class="wrap hero-grid">
     <div>
       <p class="eyebrow">Private sales · Verified paperwork · Ireland</p>
-      <h1>Buy the car —<br>and its full file.</h1>
-      <p class="lede">Every listing on Safe Trade carries a dossier: NCT cert, service history,
-        finance clearance, the lot. Hire a specialist mechanic to check it before you hand over a cent.</p>
+      <h1>Buy the car —<br>Safely.</h1>
+      <p class="lede">Every listing on Safe Trade carries car documents: NCT cert, service history,
+        finance clearance, the lot. Also hire a specialist mechanic to check it before you hand over a cent.</p>
 
       <form class="hero-search" action="listings.php" method="get">
         <div class="field">
