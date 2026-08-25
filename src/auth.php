@@ -1,6 +1,6 @@
 <?php
 /**
- * OpenBonnet — sessions, current user, role gates, CSRF.
+ * Safe Trade — sessions, current user, role gates, CSRF.
  */
 
 declare(strict_types=1);

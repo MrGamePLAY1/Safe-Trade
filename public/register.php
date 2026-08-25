@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db_exec('INSERT INTO mechanic_profiles (user_id, base_county) VALUES (?,?)', [$id, $old['county'] ?: null]);
         }
         login_user($id);
-        flash('Welcome to OpenBonnet, ' . explode(' ', $old['name'])[0] . '.');
+        flash('Welcome to Safe Trade, ' . explode(' ', $old['name'])[0] . '.');
         redirect($old['role'] === 'mechanic' ? 'dashboard.php' : 'index.php');
     }
 }

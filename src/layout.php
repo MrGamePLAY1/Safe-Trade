@@ -1,6 +1,6 @@
 <?php
 /**
- * OpenBonnet — shared layout. Call page_header() / page_footer() from every page.
+ * Safe Trade — shared layout. Call page_header() / page_footer() from every page.
  */
 
 declare(strict_types=1);
@@ -25,7 +25,7 @@ function page_header(string $title, string $active = ''): void
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= e($title) ?> · OpenBonnet</title>
+<title><?= e($title) ?> · Safe Trade</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -35,7 +35,7 @@ function page_header(string $title, string $active = ''): void
 <header class="site-head">
   <div class="wrap head-row">
     <a class="brand" href="index.php">
-      <span class="plate brand-plate"><span class="plate-band">IRL</span><span class="plate-no">OPEN·BONNET</span></span>
+      <span class="plate brand-plate"><span class="plate-band">IRL</span><span class="plate-no">SAFE·TRADE</span></span>
     </a>
     <nav class="main-nav" aria-label="Main">
       <?php foreach ($nav as $key => [$href, $label]): ?>
@@ -65,7 +65,7 @@ function page_footer(): void
 <footer class="site-foot">
   <div class="wrap foot-grid">
     <div>
-      <span class="plate plate-sm"><span class="plate-band">IRL</span><span class="plate-no">OPEN·BONNET</span></span>
+      <span class="plate plate-sm"><span class="plate-band">IRL</span><span class="plate-no">SAFE·TRADE</span></span>
       <p class="foot-tag">The full file on every car.</p>
     </div>
     <div>

@@ -1,6 +1,6 @@
 <?php
 /**
- * OpenBonnet — database connection.
+ * Safe Trade — database connection.
  * Single PDO instance, SQLite file lives in /database.
  */
 
@@ -11,7 +11,7 @@ function db(): PDO
     static $pdo = null;
 
     if ($pdo === null) {
-        $path = __DIR__ . '/../database/openbonnet.sqlite';
+        $path = __DIR__ . '/../database/safetrade.sqlite';
         if (!file_exists($path)) {
             http_response_code(500);
             exit('Database not found. Run:  php database/init.php');

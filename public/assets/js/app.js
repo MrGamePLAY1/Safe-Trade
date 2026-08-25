@@ -1,5 +1,5 @@
 /**
- * OpenBonnet — client-side behaviour.
+ * Safe Trade — client-side behaviour.
  * Kept deliberately small: countdowns, light form help, flash dismiss.
  * All rules are re-checked server-side; nothing here is a security boundary.
  */

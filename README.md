@@ -1,11 +1,9 @@
-# OpenBonnet — dev build
+# Safe Trade — dev build
 
 A trust-first used-car marketplace for Ireland. The pitch: **every listing carries a dossier**
 (NCT cert, service history, finance clearance…), buyers can **hire a make-specialist mechanic**
 for the viewing, sellers can open their car to a **dealer-only auction**, and the whole thing is
 wrapped in **buyer-safety tools**.
-
-"OpenBonnet" is a placeholder name — rename freely.
 
 ## Stack
 

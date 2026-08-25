@@ -1,4 +1,4 @@
--- OpenBonnet — schema (SQLite)
+-- Safe Trade — schema (SQLite)
 -- Run via database/init.php (which also seeds demo data).
 
 PRAGMA foreign_keys = ON;

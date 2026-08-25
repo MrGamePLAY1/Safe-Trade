@@ -1,6 +1,6 @@
 <?php
 /**
- * OpenBonnet — formatting, flash messages, and small UI partials.
+ * Safe Trade — formatting, flash messages, and small UI partials.
  */
 
 declare(strict_types=1);

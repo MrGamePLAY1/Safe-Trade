@@ -1,7 +1,7 @@
 <?php
 /**
- * OpenBonnet — database initialiser.
- * Usage:  php database/init.php        (creates openbonnet.sqlite + demo data)
+ * Safe Trade — database initialiser.
+ * Usage:  php database/init.php        (creates safetrade.sqlite + demo data)
  *         php database/init.php --fresh  (deletes any existing DB first)
  *
  * All demo accounts use the password:  password123
@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-$dbFile = __DIR__ . '/openbonnet.sqlite';
+$dbFile = __DIR__ . '/safetrade.sqlite';
 
 if (in_array('--fresh', $argv ?? [], true) && file_exists($dbFile)) {
     unlink($dbFile);
@@ -17,7 +17,7 @@ if (in_array('--fresh', $argv ?? [], true) && file_exists($dbFile)) {
 }
 
 if (file_exists($dbFile)) {
-    exit("Database already exists at database/openbonnet.sqlite.\nRun with --fresh to rebuild.\n");
+    exit("Database already exists at database/safetrade.sqlite.\nRun with --fresh to rebuild.\n");
 }
 
 $pdo = new PDO('sqlite:' . $dbFile);
