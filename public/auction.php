@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../src/layout.php';
 
-db_exec("UPDATE auctions SET status = 'closed' WHERE status = 'open' AND ends_at <= datetime('now','localtime')");
+db_exec("UPDATE auctions SET status = 'closed' WHERE status = 'open' AND ends_at <= datetime('now')");
 
 $id = (int)($_GET['id'] ?? 0);
 $a  = db_row(
@@ -21,11 +21,11 @@ if (!$a) {
 }
 
 $u        = current_user();
-$isDealer = $u && $u['role'] === 'dealer';
 $isSeller = $u && (int)$u['id'] === (int)$a['user_id'];
+$isDealer = $u && $u['role'] === 'dealer' && !$isSeller;
 $bids     = db_all(
     'SELECT b.*, u.name FROM bids b JOIN users u ON u.id = b.dealer_id
-      WHERE b.auction_id = ? ORDER BY b.amount_eur DESC', [$id]
+      WHERE b.auction_id = ? ORDER BY b.amount_eur DESC, b.created_at ASC, b.id ASC', [$id]
 );
 $high     = $bids[0]['amount_eur'] ?? 0;
 $open     = $a['auction_status'] === 'open';
@@ -34,18 +34,58 @@ $open     = $a['auction_status'] === 'open';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $u = require_role('dealer');
-    if (!$open) {
-        flash('This auction has ended.', 'warn');
-        redirect('auction.php?id=' . $id);
-    }
     $amount = (int)($_POST['amount'] ?? 0);
-    if ($amount <= $high) {
-        flash('Your bid must beat the current high bid of ' . price_eur((int)$high) . '.', 'error');
+
+    $pdo = db();
+    try {
+        // Serialize competing bid requests so two dealers cannot both win at the same amount.
+        $pdo->exec('BEGIN IMMEDIATE');
+
+        $fresh = db_row(
+            'SELECT a.status, a.ends_at, a.reserve_eur, l.user_id AS seller_id
+               FROM auctions a
+               JOIN listings l ON l.id = a.listing_id
+              WHERE a.id = ?',
+            [$id]
+        );
+        if (!$fresh) {
+            $pdo->exec('ROLLBACK');
+            http_response_code(404);
+            exit('Auction not found.');
+        }
+        if ((int)$fresh['seller_id'] === (int)$u['id']) {
+            $pdo->exec('ROLLBACK');
+            flash('You cannot bid on your own vehicle.', 'error');
+            redirect('auction.php?id=' . $id);
+        }
+
+        $now = gmdate('Y-m-d H:i:s');
+        if ($fresh['status'] !== 'open' || $fresh['ends_at'] <= $now) {
+            db_exec("UPDATE auctions SET status = 'closed' WHERE id = ? AND status = 'open'", [$id]);
+            $pdo->exec('COMMIT');
+            flash('This auction has ended.', 'warn');
+            redirect('auction.php?id=' . $id);
+        }
+
+        $row = db_row('SELECT MAX(amount_eur) AS high_bid FROM bids WHERE auction_id = ?', [$id]);
+        $currentHigh = (int)($row['high_bid'] ?? 0);
+        $minimum = $currentHigh + 50;
+        if ($amount < $minimum) {
+            $pdo->exec('ROLLBACK');
+            flash('Your bid must be at least ' . price_eur($minimum) . '.', 'error');
+            redirect('auction.php?id=' . $id);
+        }
+
+        db_exec('INSERT INTO bids (auction_id, dealer_id, amount_eur) VALUES (?,?,?)', [$id, $u['id'], $amount]);
+        $pdo->exec('COMMIT');
+
+        flash('Bid placed: ' . price_eur($amount)
+            . ($fresh['reserve_eur'] && $amount < $fresh['reserve_eur'] ? ' — note: still below reserve.' : ''));
         redirect('auction.php?id=' . $id);
+    } catch (Throwable $e) {
+        try { $pdo->exec('ROLLBACK'); } catch (Throwable) {}
+        throw $e;
     }
-    db_exec('INSERT INTO bids (auction_id, dealer_id, amount_eur) VALUES (?,?,?)', [$id, $u['id'], $amount]);
-    flash('Bid placed: ' . price_eur($amount) . ($a['reserve_eur'] && $amount < $a['reserve_eur'] ? ' — note: still below reserve.' : ''));
-    redirect('auction.php?id=' . $id);
 }
 
 $reserveMet = $a['reserve_eur'] ? $high >= $a['reserve_eur'] : true;
@@ -74,7 +114,7 @@ page_header('Auction — ' . $a['year'] . ' ' . $a['make'] . ' ' . $a['model'], 
           </div>
         </div>
         <table class="spec-table" style="margin-top:16px">
-          <tr><th>Mileage</th><td><?= km((int)$a['mileage_km']) ?></td></tr>
+          <tr><th>Mileage</th><td><?= km($a['mileage_km']) ?></td></tr>
           <tr><th>Fuel / gearbox</th><td><?= e($a['fuel']) ?> / <?= e($a['transmission']) ?></td></tr>
           <tr><th>County</th><td><?= e($a['county']) ?></td></tr>
           <tr><th>Seller's asking price</th><td><?= price_eur((int)$a['price_eur']) ?></td></tr>
@@ -107,7 +147,7 @@ page_header('Auction — ' . $a['year'] . ' ' . $a['make'] . ' ' . $a['model'], 
         <?php elseif ($open && !$u): ?>
           <p><a class="btn btn-blue" href="login.php?next=<?= urlencode('auction.php?id=' . $id) ?>">Dealer sign-in to bid</a></p>
         <?php elseif ($open && !$isDealer): ?>
-          <p class="muted small">Bidding is dealer-only. <?= $isSeller ? "This is your car — watch the bids come in." : '' ?></p>
+          <p class="muted small"><?= $isSeller ? "You cannot bid on your own vehicle — watch the dealer bids here." : "Bidding is limited to approved dealer accounts." ?></p>
         <?php else: ?>
           <p class="muted small">Auction ended <?= date_short($a['ends_at']) ?>.
             <?php if ($high && $reserveMet): ?>Winning bid: <strong><?= price_eur((int)$high) ?></strong>.
