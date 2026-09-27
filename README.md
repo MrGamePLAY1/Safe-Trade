@@ -163,3 +163,9 @@ This remains a development build. Important production work still includes:
 6. Escrow / verified transaction flow
 7. Listing photos
 8. Verified mechanic review submission
+
+
+## Motor Checks
+1. https://www.vehicleservices.gov.ie/cmv/search-result
+2. https://www.motorcheck.ie/faqs/free-car-check/
+3. https://www.cartell.ie/
