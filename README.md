@@ -25,7 +25,7 @@ php database/init.php --fresh
 php -S localhost:8000 -t public
 ```
 
-Requirements: PHP 8+ with `pdo_sqlite` and `fileinfo`.
+Requirements: PHP 8+ with `pdo_sqlite`, `fileinfo` and `mbstring`.
 
 ## Demo accounts
 
