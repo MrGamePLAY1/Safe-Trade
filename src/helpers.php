@@ -16,14 +16,75 @@ function price_eur(int|float|null $n): string
     return $n === null ? '—' : '€' . number_format((float)$n, 0, '.', ',');
 }
 
-function km(?int $n): string
+function km(int|string|null $n): string
 {
-    return $n === null ? '—' : number_format($n, 0, '.', ',') . ' km';
+    return $n === null || $n === '' ? '—' : number_format((int)$n, 0, '.', ',') . ' km';
+}
+
+function date_ireland(?string $sqlDate, string $format = 'j M Y'): string
+{
+    if (!$sqlDate) {
+        return '—';
+    }
+    try {
+        $dt = new DateTimeImmutable($sqlDate, new DateTimeZone('UTC'));
+        return $dt->setTimezone(new DateTimeZone('Europe/Dublin'))->format($format);
+    } catch (Exception) {
+        return '—';
+    }
 }
 
 function date_short(?string $sqlDate): string
 {
-    return $sqlDate ? date('j M Y', strtotime($sqlDate)) : '—';
+    return date_ireland($sqlDate, 'j M Y');
+}
+
+function date_time_ireland(?string $sqlDate): string
+{
+    return date_ireland($sqlDate, 'D j M, H:i');
+}
+
+/** Convert an Ireland-local datetime-local value to a UTC SQL timestamp. */
+function local_datetime_to_utc(string $value): ?string
+{
+    if ($value === '') {
+        return null;
+    }
+    $dt = DateTimeImmutable::createFromFormat('Y-m-d\\TH:i', $value, new DateTimeZone('Europe/Dublin'));
+    if (!$dt) {
+        return null;
+    }
+    return $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+}
+
+function valid_county(string $county): bool
+{
+    return $county === '' || in_array($county, COUNTIES, true);
+}
+
+function normalize_vin(string $vin): string
+{
+    return strtoupper(trim($vin));
+}
+
+function valid_vin(string $vin): bool
+{
+    return $vin === '' || preg_match('/^[A-HJ-NPR-Z0-9]{17}$/', $vin) === 1;
+}
+
+function inspection_transition_allowed(string $from, string $to, string $actor): bool
+{
+    $allowed = [
+        'mechanic' => [
+            'requested' => ['confirmed', 'cancelled'],
+            'confirmed' => ['completed', 'cancelled'],
+        ],
+        'buyer' => [
+            'requested' => ['cancelled'],
+            'confirmed' => ['cancelled'],
+        ],
+    ];
+    return in_array($to, $allowed[$actor][$from] ?? [], true);
 }
 
 const COUNTIES = ['Carlow','Cavan','Clare','Cork','Donegal','Dublin','Galway','Kerry','Kildare',
@@ -66,46 +127,91 @@ function listing_docs(int $listingId): array
 }
 
 /**
- * Documents summary: which core categories are present/verified, plus a 0–100 score.
- * Returns ['score'=>int, 'present'=>int, 'total'=>int, 'slots'=>[type=>['label','present','verified']]]
+ * Documents summary.
+ * "declared" means the seller created the record; "present" means a file is uploaded.
+ * Only uploaded core documents contribute to the completeness score.
  */
 function documents(array $docs): array
 {
     $slots = [];
     foreach (CORE_DOCS as $type => $label) {
-        $slots[$type] = ['label' => $label, 'present' => false, 'verified' => false];
+        $slots[$type] = [
+            'label' => $label,
+            'declared' => false,
+            'present' => false,
+            'verified' => false,
+        ];
     }
     foreach ($docs as $d) {
-        if (isset($slots[$d['doc_type']])) {
+        if (!isset($slots[$d['doc_type']])) {
+            continue;
+        }
+        $slots[$d['doc_type']]['declared'] = true;
+        if (!empty($d['file_path'])) {
             $slots[$d['doc_type']]['present'] = true;
-            if ($d['verified']) {
+            if (!empty($d['verified'])) {
                 $slots[$d['doc_type']]['verified'] = true;
             }
         }
     }
-    $present = count(array_filter($slots, fn($s) => $s['present']));
-    $total   = count($slots);
+
+    $declared = count(array_filter($slots, fn($s) => $s['declared']));
+    $present  = count(array_filter($slots, fn($s) => $s['present']));
+    $total    = count($slots);
+
     return [
-        'score'   => (int) round($present / $total * 100),
-        'present' => $present,
-        'total'   => $total,
-        'slots'   => $slots,
+        'score'    => (int) round($present / $total * 100),
+        'declared' => $declared,
+        'present'  => $present,
+        'total'    => $total,
+        'slots'    => $slots,
     ];
+}
+
+function listing_can_publish(int $listingId): bool
+{
+    $types = array_keys(CORE_DOCS);
+    $placeholders = implode(',', array_fill(0, count($types), '?'));
+    $row = db_row(
+        "SELECT COUNT(DISTINCT doc_type) AS n
+           FROM documents
+          WHERE listing_id = ?
+            AND file_path IS NOT NULL
+            AND file_path != ''
+            AND doc_type IN ($placeholders)",
+        array_merge([$listingId], $types)
+    );
+    return (int)($row['n'] ?? 0) >= 1;
 }
 
 /** Segmented documents meter (one segment per core category). */
 function documents_meter(array $documents, bool $labels = false): string
 {
-    $h = '<div class="meter" role="img" aria-label="Documents ' . $documents['present'] . ' of ' . $documents['total'] . ' documents">';
+    $h = '<div class="meter" role="img" aria-label="Uploaded documents ' . $documents['present'] . ' of ' . $documents['total'] . '">';
     foreach ($documents['slots'] as $slot) {
-        $cls = $slot['present'] ? ($slot['verified'] ? 'seg on verified' : 'seg on') : 'seg';
-        $tip = $slot['label'] . ($slot['verified'] ? ' — verified' : ($slot['present'] ? '' : ' — missing'));
-        $h  .= '<span class="' . $cls . '" title="' . e($tip) . '"></span>';
+        if ($slot['verified']) {
+            $cls = 'seg on verified';
+            $tip = $slot['label'] . ' — verified';
+        } elseif ($slot['present']) {
+            $cls = 'seg on';
+            $tip = $slot['label'] . ' — uploaded';
+        } elseif ($slot['declared']) {
+            $cls = 'seg declared';
+            $tip = $slot['label'] . ' — declared, file not uploaded';
+        } else {
+            $cls = 'seg';
+            $tip = $slot['label'] . ' — missing';
+        }
+        $h .= '<span class="' . $cls . '" title="' . e($tip) . '"></span>';
     }
     $h .= '</div>';
     if ($labels) {
         $h .= '<p class="meter-caption">' . $documents['present'] . ' of ' . $documents['total']
-            . ' core documents · <span class="stamp-ink">✓</span> = verified</p>';
+            . ' core files uploaded';
+        if ($documents['declared'] > $documents['present']) {
+            $h .= ' · ' . ($documents['declared'] - $documents['present']) . ' declared only';
+        }
+        $h .= ' · <span class="stamp-ink">✓</span> = verified</p>';
     }
     return $h;
 }
