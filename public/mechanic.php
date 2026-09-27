@@ -14,6 +14,16 @@ if (!$m) {
     exit;
 }
 
+$viewer = current_user();
+$isOwnProfile = $viewer && (int)$viewer['id'] === (int)$m['user_id'];
+if (!$m['verified'] && !$isOwnProfile) {
+    http_response_code(404);
+    page_header('Not found');
+    echo '<div class="wrap section"><div class="panel"><h1>Mechanic not found</h1><p><a href="mechanics.php">All mechanics</a></p></div></div>';
+    page_footer();
+    exit;
+}
+
 $listingId = (int)($_GET['listing'] ?? $_POST['listing'] ?? 0);
 $listing   = $listingId ? db_row("SELECT * FROM listings WHERE id = ? AND status = 'live'", [$listingId]) : null;
 
@@ -25,15 +35,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash("That's your own profile.", 'warn');
         redirect('mechanic.php?id=' . $id);
     }
-    $when = trim($_POST['scheduled_for'] ?? '');
+    if ($listing && (int)$listing['user_id'] === (int)$u['id']) {
+        flash('You cannot request an inspection on your own listing.', 'error');
+        redirect('mechanic.php?id=' . $id . '&listing=' . $listing['id']);
+    }
+
+    $whenRaw = trim($_POST['scheduled_for'] ?? '');
+    $when = $whenRaw === '' ? null : local_datetime_to_utc($whenRaw);
+    if ($whenRaw !== '' && (!$when || $when <= gmdate('Y-m-d H:i:s'))) {
+        flash('Choose a valid future inspection time.', 'error');
+        redirect('mechanic.php?id=' . $id . ($listing ? '&listing=' . $listing['id'] : ''));
+    }
+
+    $message = mb_substr(trim($_POST['message'] ?? ''), 0, 1000);
     db_exec(
         'INSERT INTO inspections (mechanic_id, buyer_id, listing_id, scheduled_for, message)
          VALUES (?,?,?,?,?)',
         [
             $id, $u['id'],
             $listing ? $listing['id'] : null,
-            $when ? str_replace('T', ' ', $when) : null,
-            trim($_POST['message'] ?? '') ?: null,
+            $when,
+            $message ?: null,
         ]
     );
     flash('Inspection requested. ' . explode(' ', $m['name'])[0] . ' will confirm from their dashboard.');
