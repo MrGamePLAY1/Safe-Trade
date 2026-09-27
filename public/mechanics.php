@@ -10,7 +10,7 @@ $sql = "SELECT mp.*, u.name,
                (SELECT COUNT(*) FROM mechanic_reviews r WHERE r.mechanic_id = mp.id) AS review_count
           FROM mechanic_profiles mp
           JOIN users u ON u.id = mp.user_id
-         WHERE 1=1";
+         WHERE mp.verified = 1";
 $params = [];
 if ($make !== '') {
     $sql .= ' AND mp.id IN (SELECT mechanic_id FROM mechanic_specialties WHERE make = ?)';
@@ -63,8 +63,7 @@ page_header('Hire a mechanic', 'mechanics');
   <?php if (!$mechs): ?>
     <div class="panel">
       <h3>No mechanics match yet</h3>
-      <p class="muted">Try widening the filters — or if you're a mechanic,
-        <a href="register.php">create a mechanic account</a> and claim this patch.</p>
+      <p class="muted">Try widening the filters. Mechanic profiles appear here only after verification.</p>
     </div>
   <?php else: ?>
     <div class="grid-2">
