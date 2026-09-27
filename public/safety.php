@@ -4,6 +4,9 @@ require_once __DIR__ . '/../src/layout.php';
 $u         = current_user();
 $listingId = (int)($_GET['listing'] ?? $_POST['listing'] ?? 0);
 $listing   = $listingId ? db_row('SELECT * FROM listings WHERE id = ?', [$listingId]) : null;
+if ($listing && $listing['status'] !== 'live' && (!$u || (int)$listing['user_id'] !== (int)$u['id'])) {
+    $listing = null;
+}
 
 /* ---- create / close a check-in ---- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -12,38 +15,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST['close_checkin'])) {
         db_exec(
-            "UPDATE safety_checkins SET status = 'checked_in' WHERE id = ? AND user_id = ?",
+            "UPDATE safety_checkins SET status = 'checked_in'
+              WHERE id = ? AND user_id = ? AND status IN ('active','overdue')",
             [(int)$_POST['close_checkin'], $u['id']]
         );
         flash("Glad you're back safe.");
         redirect('safety.php');
     }
 
-    $contactName  = trim($_POST['contact_name'] ?? '');
-    $contactPhone = trim($_POST['contact_phone'] ?? '');
-    $expected     = trim($_POST['expected_back'] ?? '');
-    if ($contactName === '' || $contactPhone === '' || $expected === '') {
-        flash('A trusted contact and an expected-back time are required.', 'error');
+    $contactName  = mb_substr(trim($_POST['contact_name'] ?? ''), 0, 120);
+    $contactPhone = mb_substr(trim($_POST['contact_phone'] ?? ''), 0, 40);
+    $expectedRaw  = trim($_POST['expected_back'] ?? '');
+    $expected     = local_datetime_to_utc($expectedRaw);
+
+    if ($contactName === '' || $contactPhone === '' || !$expected) {
+        flash('A trusted contact and a valid expected-back time are required.', 'error');
         redirect('safety.php' . ($listingId ? '?listing=' . $listingId : ''));
     }
+    if ($expected <= gmdate('Y-m-d H:i:s')) {
+        flash('Expected-back time must be in the future.', 'error');
+        redirect('safety.php' . ($listingId ? '?listing=' . $listingId : ''));
+    }
+
     db_exec(
         'INSERT INTO safety_checkins (user_id, listing_id, meeting_place, contact_name, contact_phone, expected_back)
          VALUES (?,?,?,?,?,?)',
         [
             $u['id'], $listing ? $listing['id'] : null,
-            trim($_POST['meeting_place'] ?? '') ?: null,
-            $contactName, $contactPhone,
-            str_replace('T', ' ', $expected),
+            mb_substr(trim($_POST['meeting_place'] ?? ''), 0, 240) ?: null,
+            $contactName, $contactPhone, $expected,
         ]
     );
     flash('Check-in armed. Tap "I\'m back safe" when you\'re done.');
     redirect('safety.php');
 }
 
+if ($u) {
+    db_exec(
+        "UPDATE safety_checkins SET status = 'overdue'
+          WHERE user_id = ? AND status = 'active' AND expected_back <= datetime('now')",
+        [$u['id']]
+    );
+}
 $active = $u
     ? db_all("SELECT c.*, l.make, l.model, l.year FROM safety_checkins c
               LEFT JOIN listings l ON l.id = c.listing_id
-              WHERE c.user_id = ? AND c.status = 'active' ORDER BY c.created_at DESC", [$u['id']])
+              WHERE c.user_id = ? AND c.status IN ('active','overdue') ORDER BY c.created_at DESC", [$u['id']])
     : [];
 
 page_header('Buyer safety', 'safety');
@@ -89,8 +106,8 @@ page_header('Buyer safety', 'safety');
             <strong>Active check-in</strong> —
             <?= $c['make'] ? e($c['year'] . ' ' . $c['make'] . ' ' . $c['model']) : 'car viewing' ?><?=
               $c['meeting_place'] ? ' at ' . e($c['meeting_place']) : '' ?>.
-            Expected back <span class="mono"><?= date('D j M, H:i', strtotime($c['expected_back'])) ?></span>.
-            <?= strtotime($c['expected_back']) < time() ? '<strong style="color:var(--danger)"> Overdue.</strong>' : '' ?>
+            Expected back <span class="mono"><?= date_time_ireland($c['expected_back']) ?></span>.
+            <?= $c['status'] === 'overdue' ? '<strong style="color:var(--danger)"> Overdue.</strong>' : '' ?>
             <form method="post" class="inline-form" style="margin-top:8px;display:block">
               <?= csrf_field() ?>
               <button class="btn btn-primary btn-sm" name="close_checkin" value="<?= $c['id'] ?>">I'm back safe</button>
