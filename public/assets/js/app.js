@@ -63,6 +63,44 @@ if (docType) {
   });
 }
 
+// ---- search: model list follows the chosen make -------------------------
+// The make select points at its model select via [data-make-select="<id>"];
+// the model select carries the whole {make: [models]} map in [data-models].
+// Server-side filtering does not depend on this — it just trims the options.
+document.querySelectorAll('[data-make-select]').forEach(function (makeSel) {
+  var modelSel = document.getElementById(makeSel.dataset.makeSelect);
+  if (!modelSel) return;
+
+  var map = {};
+  try { map = JSON.parse(modelSel.dataset.models || '{}'); } catch (err) { return; }
+
+  var anyLabel = modelSel.options[0] ? modelSel.options[0].textContent : 'Any model';
+
+  function allModels() {
+    var seen = [];
+    Object.keys(map).forEach(function (mk) {
+      map[mk].forEach(function (mo) { if (seen.indexOf(mo) === -1) seen.push(mo); });
+    });
+    return seen.sort();
+  }
+
+  function fill(list, keep) {
+    modelSel.innerHTML = '';
+    modelSel.appendChild(new Option(anyLabel, ''));
+    list.forEach(function (mo) { modelSel.appendChild(new Option(mo, mo)); });
+    modelSel.value = list.indexOf(keep) === -1 ? '' : keep;
+  }
+
+  // Pages that render the options server-side (browse) already have them.
+  if (modelSel.options.length <= 1) {
+    fill(makeSel.value ? (map[makeSel.value] || []) : allModels(), '');
+  }
+
+  makeSel.addEventListener('change', function () {
+    fill(makeSel.value ? (map[makeSel.value] || []) : allModels(), modelSel.value);
+  });
+});
+
 // ---- flashes: click to dismiss ------------------------------------------
 document.querySelectorAll('.flash').forEach(function (f) {
   f.style.cursor = 'pointer';

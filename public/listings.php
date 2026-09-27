@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../src/layout.php';
 
 $make     = trim($_GET['make'] ?? '');
+$model    = trim($_GET['model'] ?? '');
 $county   = trim($_GET['county'] ?? '');
 $maxPrice = (int)($_GET['max_price'] ?? 0);
 $sort     = $_GET['sort'] ?? 'newest';
@@ -9,6 +10,7 @@ $sort     = $_GET['sort'] ?? 'newest';
 $where  = ["status = 'live'"];
 $params = [];
 if ($make !== '')   { $where[] = 'make = ?';        $params[] = $make; }
+if ($model !== '')  { $where[] = 'model = ?';       $params[] = $model; }
 if ($county !== '') { $where[] = 'county = ?';      $params[] = $county; }
 if ($maxPrice > 0)  { $where[] = 'price_eur <= ?';  $params[] = $maxPrice; }
 
@@ -23,7 +25,12 @@ $listings = db_all(
     'SELECT * FROM listings WHERE ' . implode(' AND ', $where) . " ORDER BY $orderBy",
     $params
 );
-$makes = db_all("SELECT DISTINCT make FROM listings WHERE status='live' ORDER BY make");
+$makeModels = live_make_models();
+// Model options: narrowed to the chosen make, otherwise every live model.
+$models = $make !== ''
+    ? ($makeModels[$make] ?? [])
+    : array_values(array_unique(array_merge(...array_values($makeModels) ?: [[]])));
+sort($models);
 
 page_header('Browse cars', 'listings');
 ?>
@@ -33,10 +40,20 @@ page_header('Browse cars', 'listings');
   <form class="filter-bar" method="get">
     <div class="field">
       <label for="f-make">Make</label>
-      <select id="f-make" name="make">
+      <select id="f-make" name="make" data-make-select="f-model">
         <option value="">Any make</option>
-        <?php foreach ($makes as $m): ?>
-          <option <?= $make === $m['make'] ? 'selected' : '' ?>><?= e($m['make']) ?></option>
+        <?php foreach ($makeModels as $mk => $mkModels): ?>
+          <option <?= $make === $mk ? 'selected' : '' ?>><?= e($mk) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-model">Model</label>
+      <select id="f-model" name="model"
+              data-models='<?= e(json_encode($makeModels, JSON_UNESCAPED_UNICODE)) ?>'>
+        <option value="">Any model</option>
+        <?php foreach ($models as $mo): ?>
+          <option <?= $model === $mo ? 'selected' : '' ?>><?= e($mo) ?></option>
         <?php endforeach; ?>
       </select>
     </div>
@@ -73,9 +90,9 @@ page_header('Browse cars', 'listings');
       <p class="muted">Widen the search, or <a href="sell.php">be the first to list one</a>.</p>
     </div>
   <?php else: ?>
-    <p class="muted small"><?= count($listings) ?> car<?= count($listings) === 1 ? '' : 's' ?> · dossier meter shows core documents attached</p>
+    <p class="muted small"><?= count($listings) ?> car<?= count($listings) === 1 ? '' : 's' ?> · documents meter shows core documents attached</p>
     <div class="grid-3">
-      <?php foreach ($listings as $l): $dos = dossier(listing_docs((int)$l['id'])); ?>
+      <?php foreach ($listings as $l): $dos = documents(listing_docs((int)$l['id'])); ?>
         <a class="card" href="listing.php?id=<?= $l['id'] ?>">
           <?= car_thumb($l) ?>
           <div class="card-body">
@@ -91,7 +108,7 @@ page_header('Browse cars', 'listings');
             </div>
             <div class="card-foot">
               <?= reg_plate($l['reg']) ?>
-              <?= dossier_meter($dos) ?>
+              <?= documents_meter($dos) ?>
             </div>
           </div>
         </a>

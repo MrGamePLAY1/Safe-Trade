@@ -81,7 +81,7 @@ page_header('Auction — ' . $a['year'] . ' ' . $a['make'] . ' ' . $a['model'], 
           <tr><th>Reserve</th><td><?= $a['reserve_eur'] ? ($reserveMet ? '<span class="stamp-ink">Met</span>' : 'Not met') : 'None' ?></td></tr>
         </table>
         <p class="small" style="margin-top:12px">
-          <a href="listing.php?id=<?= $a['listing_id'] ?>">Full listing &amp; dossier →</a>
+          <a href="listing.php?id=<?= $a['listing_id'] ?>">Full listing &amp; documents →</a>
         </p>
       </div>
     </div>

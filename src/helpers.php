@@ -30,7 +30,23 @@ const COUNTIES = ['Carlow','Cavan','Clare','Cork','Donegal','Dublin','Galway','K
     'Kilkenny','Laois','Leitrim','Limerick','Longford','Louth','Mayo','Meath','Monaghan',
     'Offaly','Roscommon','Sligo','Tipperary','Waterford','Westmeath','Wexford','Wicklow'];
 
-/* ---------- The dossier ----------
+/**
+ * Makes and models currently on sale, as ['Toyota' => ['Corolla Hybrid', ...], ...].
+ * Feeds the make/model search selects (the model list narrows to the chosen make in JS).
+ */
+function live_make_models(): array
+{
+    $rows = db_all(
+        "SELECT DISTINCT make, model FROM listings WHERE status = 'live' ORDER BY make, model"
+    );
+    $map = [];
+    foreach ($rows as $r) {
+        $map[$r['make']][] = $r['model'];
+    }
+    return $map;
+}
+
+/* ---------- The documents ----------
  * Six core document categories drive the completeness score.
  * 'other' docs are shown but don't count toward the score.
  */
@@ -50,10 +66,10 @@ function listing_docs(int $listingId): array
 }
 
 /**
- * Dossier summary: which core categories are present/verified, plus a 0–100 score.
+ * Documents summary: which core categories are present/verified, plus a 0–100 score.
  * Returns ['score'=>int, 'present'=>int, 'total'=>int, 'slots'=>[type=>['label','present','verified']]]
  */
-function dossier(array $docs): array
+function documents(array $docs): array
 {
     $slots = [];
     foreach (CORE_DOCS as $type => $label) {
@@ -77,18 +93,18 @@ function dossier(array $docs): array
     ];
 }
 
-/** Segmented dossier meter (one segment per core category). */
-function dossier_meter(array $dossier, bool $labels = false): string
+/** Segmented documents meter (one segment per core category). */
+function documents_meter(array $documents, bool $labels = false): string
 {
-    $h = '<div class="meter" role="img" aria-label="Dossier ' . $dossier['present'] . ' of ' . $dossier['total'] . ' documents">';
-    foreach ($dossier['slots'] as $slot) {
+    $h = '<div class="meter" role="img" aria-label="Documents ' . $documents['present'] . ' of ' . $documents['total'] . ' documents">';
+    foreach ($documents['slots'] as $slot) {
         $cls = $slot['present'] ? ($slot['verified'] ? 'seg on verified' : 'seg on') : 'seg';
         $tip = $slot['label'] . ($slot['verified'] ? ' — verified' : ($slot['present'] ? '' : ' — missing'));
         $h  .= '<span class="' . $cls . '" title="' . e($tip) . '"></span>';
     }
     $h .= '</div>';
     if ($labels) {
-        $h .= '<p class="meter-caption">' . $dossier['present'] . ' of ' . $dossier['total']
+        $h .= '<p class="meter-caption">' . $documents['present'] . ' of ' . $documents['total']
             . ' core documents · <span class="stamp-ink">✓</span> = verified</p>';
     }
     return $h;

@@ -16,7 +16,7 @@ if (!$l) {
 }
 
 $docs    = listing_docs($id);
-$dos     = dossier($docs);
+$dos     = documents($docs);
 $u       = current_user();
 $isOwner = $u && (int)$u['id'] === (int)$l['user_id'];
 $auction = db_row('SELECT * FROM auctions WHERE listing_id = ?', [$id]);
@@ -73,10 +73,10 @@ page_header($l['year'] . ' ' . $l['make'] . ' ' . $l['model'], 'listings');
     <div>
       <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
-          <h2 style="margin:0">The dossier</h2>
+          <h2 style="margin:0">Vehicle documents</h2>
           <span class="mono small"><?= $dos['present'] ?>/<?= $dos['total'] ?></span>
         </div>
-        <div style="margin:12px 0 16px"><?= dossier_meter($dos, true) ?></div>
+        <div style="margin:12px 0 16px"><?= documents_meter($dos, true) ?></div>
 
         <ul class="doc-checklist">
           <?php foreach ($dos['slots'] as $slot): ?>
@@ -113,7 +113,7 @@ page_header($l['year'] . ' ' . $l['make'] . ' ' . $l['model'], 'listings');
 
         <?php if ($isOwner): ?>
           <div class="form-actions">
-            <a class="btn btn-primary btn-sm" href="documents.php?listing=<?= $id ?>">Manage dossier</a>
+            <a class="btn btn-primary btn-sm" href="documents.php?listing=<?= $id ?>">Manage documents</a>
           </div>
         <?php endif; ?>
       </div>

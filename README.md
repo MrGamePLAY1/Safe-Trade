@@ -1,6 +1,6 @@
 # Safe Trade — dev build
 
-A trust-first used-car marketplace for Ireland. The pitch: **every listing carries a dossier**
+A trust-first used-car marketplace for Ireland. The pitch: **every listing carries its documents**
 (NCT cert, service history, finance clearance…), buyers can **hire a make-specialist mechanic**
 for the viewing, sellers can open their car to a **dealer-only auction**, and the whole thing is
 wrapped in **buyer-safety tools**.
@@ -39,7 +39,7 @@ All passwords are `password123`.
 | dealer@example.com   | dealer   | Currently the high bidder on the Octavia |
 | dealer2@example.com  | dealer   | Second dealer for auction testing        |
 
-A good demo path: browse as a guest → open the Corolla (full dossier) → "Hire a Toyota specialist"
+A good demo path: browse as a guest → open the Corolla (full document set) → "Hire a Toyota specialist"
 → sign in as `conor@` and request an inspection → sign in as `sinead@` and confirm it from the
 dashboard → sign in as `dealer@` and bid on the Octavia auction.
 
@@ -47,11 +47,11 @@ dashboard → sign in as `dealer@` and bid on the Octavia auction.
 
 ```
 public/            web root — one PHP file per screen
-  index.php        home: hero + featured dossier card + search
+  index.php        home: hero + featured documents card + search
   listings.php     browse/filter
-  listing.php      detail + dossier panel + safety/inspection actions
+  listing.php      detail + documents panel + safety/inspection actions
   sell.php         create listing → documents.php
-  documents.php    dossier builder (upload or declare docs, delete)
+  documents.php    documents builder (upload or declare docs, delete)
   mechanics.php    marketplace, filterable by make speciality
   mechanic.php     profile, make-anchored reviews, booking form
   auctions.php     open auctions + create-auction (premium) flow
@@ -64,7 +64,7 @@ public/            web root — one PHP file per screen
 src/
   db.php           PDO singleton + db_row/db_all/db_exec helpers
   auth.php         sessions, role gates, CSRF helpers
-  helpers.php      formatting, dossier scoring, plate/meter partials
+  helpers.php      formatting, documents scoring, plate/meter partials
   layout.php       page_header()/page_footer()
 database/
   schema.sql       full schema, commented
@@ -73,7 +73,7 @@ database/
 
 ### Ideas the code encodes
 
-- **The dossier** — six core document categories (`CORE_DOCS` in `src/helpers.php`) drive a
+- **The documents** — six core document categories (`CORE_DOCS` in `src/helpers.php`) drive a
   0–100 completeness score and the segmented meter shown on every card. Docs can be *declared*
   before a file is uploaded; buyers see the difference. `verified` exists on documents but is
   currently only set by seed data (see roadmap).
@@ -92,11 +92,11 @@ Rough order of value, based on the research that shaped this build:
 1. **Escrow / verified payment** — the highest-leverage safety feature and the natural
    transaction-fee revenue line. Hold funds until ownership transfer is confirmed.
 2. **Mechanic verification workflow** — after a completed inspection, let the mechanic mark
-   dossier documents as sighted/verified (the `verified` column and stamp UI already exist).
+   documents as sighted/verified (the `verified` column and stamp UI already exist).
 3. **Check-in alerts** — SMS/WhatsApp to the trusted contact when a check-in goes overdue
    (Twilio or similar). The data model is done; only the notifier is missing.
 4. **History-check API** — wire the VIN stub on `safety.php` (and auto-pull into new listings
-   from `sell.php`) to a provider; cache results as dossier documents.
+   from `sell.php`) to a provider; cache results as documents.
 5. **In-app messaging** — keep buyer↔seller contact on-platform until a viewing is agreed;
    this is both a safety feature and the anti-disintermediation moat.
 6. **Payments for the auction tier** — listing fee or success fee; Stripe is the obvious start.

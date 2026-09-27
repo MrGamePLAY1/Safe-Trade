@@ -58,7 +58,7 @@ page_header('Buyer safety', 'safety');
       <div class="panel">
         <h2>Before the viewing</h2>
         <ul class="safety-list">
-          <li><span class="n">1</span><div><strong>Read the dossier first.</strong> Missing paperwork isn't automatically a scam — but it's a question to ask before you travel, not after.</div></li>
+          <li><span class="n">1</span><div><strong>Read the documents first.</strong> Missing paperwork isn't automatically a scam — but it's a question to ask before you travel, not after.</div></li>
           <li><span class="n">2</span><div><strong>Check the story adds up.</strong> Does the mileage match the service history? Does the seller's county match the reg? Underpriced cars with urgent sellers are the classic pattern.</div></li>
           <li><span class="n">3</span><div><strong>Meet in daylight, in public.</strong> A busy car park beats a laneway. If the seller will only meet somewhere odd at odd hours, walk.</div></li>
           <li><span class="n">4</span><div><strong>Bring someone.</strong> A friend — or better, <a href="mechanics.php">a mechanic who knows the make</a>. Two people change the dynamic of a viewing entirely.</div></li>

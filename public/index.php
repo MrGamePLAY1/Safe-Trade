@@ -26,7 +26,7 @@ $mechs = db_all(
       LIMIT 2"
 );
 
-$makes = db_all("SELECT DISTINCT make FROM listings WHERE status='live' ORDER BY make");
+$makeModels = live_make_models();
 
 page_header('Buy and sell cars with the full paperwork', 'home');
 ?>
@@ -34,16 +34,23 @@ page_header('Buy and sell cars with the full paperwork', 'home');
   <div class="wrap hero-grid">
     <div>
       <p class="eyebrow">Private sales · Verified paperwork · Ireland</p>
-      <h1>Buy the car —<br>Safely.</h1>
+      <h1>Buy your car <br>Safely.</h1>
       <p class="lede">Every listing on Safe Trade carries car documents: NCT cert, service history,
         finance clearance, the lot. Also hire a specialist mechanic to check it before you hand over a cent.</p>
 
       <form class="hero-search" action="listings.php" method="get">
         <div class="field">
           <label for="hs-make">Make</label>
-          <select id="hs-make" name="make">
+          <select id="hs-make" name="make" data-make-select="hs-model">
             <option value="">Any make</option>
-            <?php foreach ($makes as $m): ?><option><?= e($m['make']) ?></option><?php endforeach; ?>
+            <?php foreach ($makeModels as $mk => $models): ?><option><?= e($mk) ?></option><?php endforeach; ?>
+          </select>
+        </div>
+        <div class="field">
+          <label for="hs-model">Model</label>
+          <select id="hs-model" name="model"
+                  data-models='<?= e(json_encode($makeModels, JSON_UNESCAPED_UNICODE)) ?>'>
+            <option value="">Any model</option>
           </select>
         </div>
         <div class="field">
@@ -61,10 +68,10 @@ page_header('Buy and sell cars with the full paperwork', 'home');
       </form>
     </div>
 
-    <?php if ($featured): $dos = dossier(listing_docs((int)$featured['id'])); ?>
-    <a class="dossier-card" href="listing.php?id=<?= $featured['id'] ?>" style="display:block;color:inherit;text-decoration:none">
+    <?php if ($featured): $dos = documents(listing_docs((int)$featured['id'])); ?>
+    <a class="documents-card" href="listing.php?id=<?= $featured['id'] ?>" style="display:block;color:inherit;text-decoration:none">
       <div class="dc-head">
-        <span>Vehicle dossier</span>
+        <span>Vehicle documents</span>
         <span><?= $dos['present'] ?>/<?= $dos['total'] ?> documents</span>
       </div>
       <?= car_thumb($featured) ?>
@@ -77,7 +84,7 @@ page_header('Buy and sell cars with the full paperwork', 'home');
           <?= reg_plate($featured['reg']) ?>
           <span class="price"><?= price_eur((int)$featured['price_eur']) ?></span>
         </div>
-        <div style="margin-top:12px"><?= dossier_meter($dos, true) ?></div>
+        <div style="margin-top:12px"><?= documents_meter($dos, true) ?></div>
       </div>
     </a>
     <?php endif; ?>
@@ -89,7 +96,7 @@ page_header('Buy and sell cars with the full paperwork', 'home');
     <div class="grid-3">
       <div class="how-step">
         <p class="k">List</p>
-        <h3>Build the dossier</h3>
+        <h3>Add vehicle documents</h3>
         <p class="muted">Attach the NCT cert, service history and finance clearance to your listing.
           A complete file answers the questions buyers were going to ask anyway.</p>
       </div>
@@ -116,7 +123,7 @@ page_header('Buy and sell cars with the full paperwork', 'home');
       <a href="listings.php">Browse all →</a>
     </div>
     <div class="grid-3">
-      <?php foreach ($latest as $l): $dos = dossier(listing_docs((int)$l['id'])); ?>
+      <?php foreach ($latest as $l): $dos = documents(listing_docs((int)$l['id'])); ?>
         <a class="card" href="listing.php?id=<?= $l['id'] ?>">
           <?= car_thumb($l) ?>
           <div class="card-body">
@@ -131,7 +138,7 @@ page_header('Buy and sell cars with the full paperwork', 'home');
             </div>
             <div class="card-foot">
               <?= reg_plate($l['reg']) ?>
-              <?= dossier_meter($dos) ?>
+              <?= documents_meter($dos) ?>
             </div>
           </div>
         </a>

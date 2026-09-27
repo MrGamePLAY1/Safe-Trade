@@ -35,7 +35,7 @@ CREATE TABLE listings (
   created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- The dossier: every document attached to a listing.
+-- The documents: every document attached to a listing.
 -- Core categories (used for the completeness score) are defined in src/helpers.php.
 CREATE TABLE documents (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,

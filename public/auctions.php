@@ -109,7 +109,7 @@ page_header('Dealer auctions', 'auctions');
   <?php elseif (!$eligible): ?>
     <div class="panel">
       <p style="margin:0" class="muted">You've no live listings without an auction.
-        <a href="sell.php">List a car first</a> — a full dossier gets stronger trade bids.</p>
+        <a href="sell.php">List a car first</a> — a full document set gets stronger trade bids.</p>
     </div>
   <?php else: ?>
     <div class="form-card">
@@ -142,7 +142,7 @@ page_header('Dealer auctions', 'auctions');
         </div>
         <div class="form-actions">
           <button class="btn btn-blue" type="submit">Start dealer auction</button>
-          <span class="small muted">Dealers see the dossier — complete it first.</span>
+          <span class="small muted">Dealers see the documents — complete them first.</span>
         </div>
       </form>
     </div>

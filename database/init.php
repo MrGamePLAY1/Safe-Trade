@@ -54,13 +54,13 @@ $corolla = insert($pdo, 'listings', [
     'user_id'=>$aoife, 'make'=>'Toyota', 'model'=>'Corolla Hybrid', 'year'=>2019,
     'reg'=>'191-D-21744', 'vin'=>'SB1KE3JE10E123456', 'mileage_km'=>82000, 'price_eur'=>21950,
     'fuel'=>'Hybrid', 'transmission'=>'Automatic', 'colour'=>'Silver', 'county'=>'Dublin',
-    'description'=>"One owner from new, full Toyota main-dealer service history. NCT passed last month with no advisories. Hybrid battery health report included in the dossier. Selling as we've gone down to one car.",
+    'description'=>"One owner from new, full Toyota main-dealer service history. NCT passed last month with no advisories. Hybrid battery health report included in the documents. Selling as we've gone down to one car.",
 ]);
 $bmw = insert($pdo, 'listings', [
     'user_id'=>$conor, 'make'=>'BMW', 'model'=>'320d M Sport', 'year'=>2016,
     'reg'=>'161-C-8812', 'vin'=>'WBA8C5102GK654321', 'mileage_km'=>148000, 'price_eur'=>15500,
     'fuel'=>'Diesel', 'transmission'=>'Manual', 'colour'=>'Estoril Blue', 'county'=>'Cork',
-    'description'=>"Timing chain done at 130k with receipts (in the dossier). Two keys, new tyres front and back. A genuinely minded car — happy for any inspection.",
+    'description'=>"Timing chain done at 130k with receipts (in the documents). Two keys, new tyres front and back. A genuinely minded car — happy for any inspection.",
 ]);
 $golf = insert($pdo, 'listings', [
     'user_id'=>$niamh, 'make'=>'Volkswagen', 'model'=>'Golf 1.6 TDI', 'year'=>2018,
@@ -78,18 +78,18 @@ $tucson = insert($pdo, 'listings', [
     'user_id'=>$aoife, 'make'=>'Hyundai', 'model'=>'Tucson Executive', 'year'=>2020,
     'reg'=>'201-D-15098', 'vin'=>'TMAJ3815ALJ112233', 'mileage_km'=>64000, 'price_eur'=>26400,
     'fuel'=>'Diesel', 'transmission'=>'Automatic', 'colour'=>'Phantom Black', 'county'=>'Dublin',
-    'description'=>"Balance of manufacturer warranty until Nov 2027. Full dossier being uploaded this week.",
+    'description'=>"Balance of manufacturer warranty until Nov 2027. Full document set being uploaded this week.",
 ]);
 $octavia = insert($pdo, 'listings', [
     'user_id'=>$niamh, 'make'=>'Skoda', 'model'=>'Octavia Ambition', 'year'=>2017,
     'reg'=>'171-G-9930', 'vin'=>'TMBJG7NE0H0334455', 'mileage_km'=>131000, 'price_eur'=>12250,
     'fuel'=>'Diesel', 'transmission'=>'Manual', 'colour'=>'Moon White', 'county'=>'Galway',
-    'description'=>"Huge boot, cheap tax. Finance cleared — cert in the dossier. Open to dealer bids via auction.",
+    'description'=>"Huge boot, cheap tax. Finance cleared — cert in the documents. Open to dealer bids via auction.",
 ]);
 echo "Listings seeded.\n";
 
 // --- documents ------------------------------------------------------------
-// The Corolla is the "gold standard" dossier: all six core categories, most verified.
+// The Corolla is the "gold standard" documents: all six core categories, most verified.
 $docs = [
     // corolla — complete
     [$corolla,'nct_cert','NCT certificate to 07/2027','Passed, zero advisories.',1],
@@ -157,7 +157,7 @@ foreach ([
     [$dara,$niamh,$insp1,'BMW','320d',5,'Caught early timing chain rattle on a different 320d I nearly bought the week before — saved me thousands. On this one he confirmed the chain work was genuine from the invoices and the sound.','Worth every cent of the callout. Report was two pages, photos included.'],
     [$dara,$conor,null,'Audi','A4 2.0 TDI',5,'Spotted a weeping injector seal and a lazy glow plug the seller didn\'t know about.','Used the report to knock €600 off. Straight talker.'],
     [$dara,$aoife,null,'Volkswagen','Passat',4,'DPF was on its way out — he showed me the soot load reading on his scanner.','Walked away from that car. Only reason for 4 stars is he was 20 minutes late.'],
-    [$sinead,$conor,$insp2,'Toyota','Corolla Hybrid',5,'Ran a full battery state-of-health test — 94%, printed the report on the spot.','That report is literally in the seller\'s dossier now. Brilliant.'],
+    [$sinead,$conor,$insp2,'Toyota','Corolla Hybrid',5,'Ran a full battery state-of-health test — 94%, printed the report on the spot.','That report is literally in the seller\'s documents now. Brilliant.'],
     [$sinead,$niamh,null,'Toyota','Prius',5,'Told me the battery had 2 years left at best. She was right — it was already throwing a soft code.','Honest even though it cost her a repeat job. Booking her for the next one.'],
 ] as [$mid,$rev,$iid,$mk,$mdl,$rating,$found,$comment]) {
     insert($pdo, 'mechanic_reviews', [

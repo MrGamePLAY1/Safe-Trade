@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $old['description'] ?: null,
             ]
         );
-        flash('Listing created. Now build the dossier — listings with full paperwork get taken seriously.');
+        flash('Listing created. Now add the vehicle documents — listings with full paperwork get taken seriously.');
         redirect('documents.php?listing=' . $id);
     }
 }
@@ -43,8 +43,8 @@ page_header('Sell your car', 'sell');
 ?>
 <div class="wrap section-tight">
   <h1>Sell your car</h1>
-  <p class="muted" style="max-width:60ch">Two steps: the car's details, then the dossier.
-    The dossier is what separates your ad from a one-line classified — it answers the buyer's
+  <p class="muted" style="max-width:60ch">Two steps: the car's details, then the documents.
+    The documents are what separate your ad from a one-line classified — it answers the buyer's
     questions before they ask them.</p>
 
   <?php foreach ($errors as $err): ?>
@@ -120,7 +120,7 @@ page_header('Sell your car', 'sell');
         </div>
       </div>
       <div class="form-actions">
-        <button class="btn btn-primary" type="submit">Create listing → build dossier</button>
+        <button class="btn btn-primary" type="submit">Create listing → add documents</button>
       </div>
     </form>
   </div>

@@ -71,18 +71,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'INSERT INTO documents (listing_id, doc_type, title, note, file_path) VALUES (?,?,?,?,?)',
         [$id, $type, $title, $note ?: null, $storedName]
     );
-    flash('Added to the dossier.');
+    flash('Document added.');
     redirect('documents.php?listing=' . $id);
 }
 
 $docs = listing_docs($id);
-$dos  = dossier($docs);
+$dos  = documents($docs);
 
-page_header('Dossier — ' . $l['make'] . ' ' . $l['model'], 'sell');
+page_header('Documents — ' . $l['make'] . ' ' . $l['model'], 'sell');
 ?>
 <div class="wrap section-tight">
   <p class="small"><a href="listing.php?id=<?= $id ?>">← Back to listing</a></p>
-  <h1>Build the dossier</h1>
+  <h1>Add vehicle documents</h1>
   <p class="muted"><?= e($l['year'] . ' ' . $l['make'] . ' ' . $l['model']) ?> · <?= reg_plate($l['reg']) ?></p>
 
   <div class="detail-grid" style="margin-top:20px">
@@ -119,7 +119,7 @@ page_header('Dossier — ' . $l['make'] . ' ' . $l['model'], 'sell');
               You can declare a document now and upload the scan later — buyers see the difference.
             </p>
           </div>
-          <button class="btn btn-primary" type="submit">Add to dossier</button>
+          <button class="btn btn-primary" type="submit">Add document</button>
         </form>
       </div>
 
@@ -133,10 +133,10 @@ page_header('Dossier — ' . $l['make'] . ' ' . $l['model'], 'sell');
     <div>
       <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:baseline">
-          <h3 style="margin:0">Dossier status</h3>
+          <h3 style="margin:0">Documents status</h3>
           <span class="mono small"><?= $dos['present'] ?>/<?= $dos['total'] ?> core</span>
         </div>
-        <div style="margin:12px 0"><?= dossier_meter($dos, true) ?></div>
+        <div style="margin:12px 0"><?= documents_meter($dos, true) ?></div>
 
         <?php if ($docs): ?>
           <ul class="doc-list">
@@ -150,7 +150,7 @@ page_header('Dossier — ' . $l['make'] . ' ' . $l['model'], 'sell');
                     <?php if (!$d['file_path']): ?><br><span class="small muted">Declared — no file yet</span><?php endif; ?>
                   </div>
                   <form method="post" class="inline-form"
-                        onsubmit="return confirm('Remove this document from the dossier?')">
+                        onsubmit="return confirm('Remove this document from the documents?')">
                     <?= csrf_field() ?>
                     <input type="hidden" name="listing" value="<?= $id ?>">
                     <button class="btn btn-danger btn-sm" name="delete_doc" value="<?= $d['id'] ?>">Remove</button>

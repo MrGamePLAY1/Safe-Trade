@@ -296,7 +296,7 @@ page_header('Dashboard', 'dashboard');
       <p class="muted" style="padding:16px 0">Nothing listed yet.</p>
     <?php else: ?>
       <table class="dash-table">
-        <tr><th>Car</th><th>Price</th><th>Dossier</th><th>Status</th><th></th></tr>
+        <tr><th>Car</th><th>Price</th><th>Documents</th><th>Status</th><th></th></tr>
         <?php foreach ($myListings as $l): ?>
           <tr>
             <td>
