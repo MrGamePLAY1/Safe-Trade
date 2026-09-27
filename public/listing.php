@@ -15,10 +15,18 @@ if (!$l) {
     exit;
 }
 
-$docs    = listing_docs($id);
-$dos     = documents($docs);
 $u       = current_user();
 $isOwner = $u && (int)$u['id'] === (int)$l['user_id'];
+if (!$isOwner && $l['status'] !== 'live') {
+    http_response_code(404);
+    page_header('Not found');
+    echo '<div class="wrap section"><div class="panel"><h1>Listing not found</h1><p><a href="listings.php">Back to all cars</a></p></div></div>';
+    page_footer();
+    exit;
+}
+
+$docs    = listing_docs($id);
+$dos     = documents($docs);
 $auction = db_row('SELECT * FROM auctions WHERE listing_id = ?', [$id]);
 $otherDocs = array_filter($docs, fn($d) => $d['doc_type'] === 'other');
 
@@ -52,7 +60,7 @@ page_header($l['year'] . ' ' . $l['make'] . ' ' . $l['model'], 'listings');
         </div>
 
         <table class="spec-table" style="margin-top:16px">
-          <tr><th>Mileage</th><td><?= km((int)$l['mileage_km']) ?></td></tr>
+          <tr><th>Mileage</th><td><?= km($l['mileage_km']) ?></td></tr>
           <tr><th>Fuel</th><td><?= e($l['fuel'] ?: '—') ?></td></tr>
           <tr><th>Transmission</th><td><?= e($l['transmission'] ?: '—') ?></td></tr>
           <tr><th>Colour</th><td><?= e($l['colour'] ?: '—') ?></td></tr>
@@ -84,7 +92,9 @@ page_header($l['year'] . ' ' . $l['make'] . ' ' . $l['model'], 'listings');
               <span class="tick">✓</span>
               <span style="flex:1"><?= e($slot['label']) ?></span>
               <?php if ($slot['verified']): ?><span class="stamp">Verified</span>
-              <?php elseif (!$slot['present']): ?><span class="small muted">Missing</span><?php endif; ?>
+              <?php elseif ($slot['present']): ?><span class="small muted">Uploaded</span>
+              <?php elseif ($slot['declared']): ?><span class="small muted">Declared only</span>
+              <?php else: ?><span class="small muted">Missing</span><?php endif; ?>
             </li>
           <?php endforeach; ?>
         </ul>
@@ -99,8 +109,10 @@ page_header($l['year'] . ' ' . $l['make'] . ' ' . $l['model'], 'listings');
                   <?php if ($d['verified']): ?><span class="stamp">Verified</span><?php endif; ?>
                 </div>
                 <?php if ($d['note']): ?><p class="small muted" style="margin:4px 0 0"><?= e($d['note']) ?></p><?php endif; ?>
-                <?php if ($d['file_path']): ?>
-                  <a class="small" href="uploads/<?= e($d['file_path']) ?>" target="_blank" rel="noopener">View file →</a>
+                <?php if ($d['file_path'] && $u): ?>
+                  <a class="small" href="document.php?id=<?= $d['id'] ?>" target="_blank" rel="noopener">View uploaded file →</a>
+                <?php elseif ($d['file_path']): ?>
+                  <a class="small" href="login.php?next=<?= urlencode('listing.php?id=' . $id) ?>">Sign in to view uploaded file</a>
                 <?php else: ?>
                   <span class="small muted">Declared by seller — file not uploaded yet</span>
                 <?php endif; ?>
