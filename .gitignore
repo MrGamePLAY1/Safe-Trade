@@ -1,0 +1,16 @@
+# Runtime data
+/database/*.sqlite
+/database/*.sqlite-*
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
