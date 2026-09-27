@@ -104,7 +104,7 @@ page_header('Dealer auctions', 'auctions');
   <div id="create" class="section-head" style="margin-top:40px"><h2>Put your car to the trade</h2></div>
   <?php if (!$u): ?>
     <div class="panel">
-      <p style="margin:0"><a href="login.php?next=auctions.php">Sign in</a> with a private account to auction one of your listings,
+      <p style="margin:0"><a href="login.php?next=auctions.php">Sign in</a> with a private account to auction one of your listings.
         Dealer access is granted separately after verification.</p>
     </div>
   <?php elseif ($u['role'] === 'dealer'): ?>
