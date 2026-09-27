@@ -101,7 +101,7 @@ page_header('Browse cars', 'listings');
               <span class="price"><?= price_eur((int)$l['price_eur']) ?></span>
             </div>
             <div class="card-meta">
-              <span><?= km((int)$l['mileage_km']) ?></span>
+              <span><?= km($l['mileage_km']) ?></span>
               <span><?= e($l['fuel']) ?></span>
               <span><?= e($l['transmission']) ?></span>
               <span><?= e($l['county']) ?></span>
