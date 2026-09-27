@@ -8,7 +8,8 @@
 // Any element with [data-ends-at="YYYY-MM-DD HH:MM:SS"] becomes a live countdown.
 function tickCountdowns() {
   document.querySelectorAll('[data-ends-at]').forEach(function (el) {
-    var end = new Date(el.dataset.endsAt.replace(' ', 'T'));
+    var raw = el.dataset.endsAt.replace(' ', 'T');
+    var end = new Date(raw.endsWith('Z') ? raw : raw + 'Z');
     var diff = end - Date.now();
     if (isNaN(end)) return;
     if (diff <= 0) {
