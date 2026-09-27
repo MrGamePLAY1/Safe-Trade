@@ -1,114 +1,165 @@
-# Safe Trade — dev build
+# Safe Trade — hardened dev build
 
-A trust-first used-car marketplace for Ireland. The pitch: **every listing carries its documents**
-(NCT cert, service history, finance clearance…), buyers can **hire a make-specialist mechanic**
-for the viewing, sellers can open their car to a **dealer-only auction**, and the whole thing is
-wrapped in **buyer-safety tools**.
+A trust-first used-car marketplace for Ireland. Live listings carry uploaded vehicle paperwork,
+buyers can hire a verified make-specialist mechanic for a viewing, private sellers can open a
+car to approved dealer accounts, and buyer-safety tools are built into the flow.
 
 ## Stack
 
-- PHP 8+ (no framework) with PDO
-- SQLite (single file in `database/`)
-- Vanilla JS + one hand-rolled stylesheet — no build step, no dependencies
+- PHP 8.0+ with PDO
+- SQLite
+- Vanilla JavaScript
+- Hand-rolled CSS design system
+- No build step or runtime package dependencies
 
 ## Run it
 
 ```bash
-# 1. Create + seed the database
-php database/init.php          # add --fresh to wipe and rebuild
+# Create and seed the local database + demo document files
+php database/init.php
 
-# 2. Serve the public/ directory
+# Rebuild everything from scratch
+php database/init.php --fresh
+
+# Serve only the public web root
 php -S localhost:8000 -t public
-
-# 3. Open http://localhost:8000
 ```
 
-Requirements: PHP 8.0+ with `pdo_sqlite` (on Debian/Ubuntu: `apt install php-cli php-sqlite3`).
+Requirements: PHP 8+ with `pdo_sqlite` and `fileinfo`.
 
 ## Demo accounts
 
-All passwords are `password123`.
+All demo passwords are `password123`.
 
-| Email                | Role     | Notes                                    |
-|----------------------|----------|------------------------------------------|
-| aoife@example.com    | private  | Owns the fully-documented Corolla        |
-| conor@example.com    | private  | Owns the BMW + Focus                     |
-| niamh@example.com    | private  | Owns the Golf + Octavia (live auction)   |
-| dara@example.com     | mechanic | BMW / Audi / VW specialist, 3 reviews    |
-| sinead@example.com   | mechanic | Toyota / Lexus hybrid specialist         |
-| dealer@example.com   | dealer   | Currently the high bidder on the Octavia |
-| dealer2@example.com  | dealer   | Second dealer for auction testing        |
+| Email | Role | Notes |
+|---|---|---|
+| aoife@example.com | private | Owns the fully documented Corolla |
+| conor@example.com | private | Owns the BMW + Focus |
+| niamh@example.com | private | Owns the Golf + Octavia |
+| dara@example.com | mechanic | Verified BMW / Audi / VW specialist |
+| sinead@example.com | mechanic | Verified Toyota / Lexus specialist |
+| dealer@example.com | dealer | Approved demo dealer |
+| dealer2@example.com | dealer | Second approved demo dealer |
 
-A good demo path: browse as a guest → open the Corolla (full document set) → "Hire a Toyota specialist"
-→ sign in as `conor@` and request an inspection → sign in as `sinead@` and confirm it from the
-dashboard → sign in as `dealer@` and bid on the Octavia auction.
+Public registration creates **private accounts only**. Mechanic and dealer roles are deliberately
+not self-selectable; a real onboarding/verification process should grant those roles.
+
+## Trust model
+
+Safe Trade distinguishes three document states:
+
+1. **Declared** — the seller says the document exists, but no file has been uploaded.
+2. **Uploaded** — a PDF/JPG/PNG has been content-sniffed and stored outside the public web root.
+3. **Verified** — reserved for evidence checked by a trusted verification workflow.
+
+Only uploaded core documents contribute to the 0–100 completeness meter. A draft listing requires
+at least one uploaded core vehicle document before it can be published.
+
+Uploaded files live in `storage/uploads/` and are served through `public/document.php`, which
+requires authentication and checks listing visibility before returning the file.
 
 ## Project tour
 
 ```
-public/            web root — one PHP file per screen
-  index.php        home: hero + featured documents card + search
+public/
+  index.php        home + search
   listings.php     browse/filter
-  listing.php      detail + documents panel + safety/inspection actions
-  sell.php         create listing → documents.php
-  documents.php    documents builder (upload or declare docs, delete)
-  mechanics.php    marketplace, filterable by make speciality
-  mechanic.php     profile, make-anchored reviews, booking form
-  auctions.php     open auctions + create-auction (premium) flow
-  auction.php      bid history + dealer bid form + countdown
+  listing.php      listing detail + document states
+  sell.php         create a private draft
+  documents.php    upload/declare documents + publish
+  document.php     authorized document delivery
+  mechanics.php    verified mechanic marketplace
+  mechanic.php     profile, reviews, inspection booking
+  auctions.php     dealer auctions + seller creation flow
+  auction.php      atomic dealer bidding + countdown
   safety.php       checklist, check-in tool, VIN-check stub
-  dashboard.php    role-aware: listings / inspection queue / bids
-  login.php, register.php, logout.php
-  assets/          style.css (design system), app.js (countdowns etc.)
-  uploads/         document files land here (gitignore in production)
+  dashboard.php    role-aware listing/inspection/bid/check-in tools
+  login.php
+  register.php
+  logout.php
+  assets/
+
 src/
-  db.php           PDO singleton + db_row/db_all/db_exec helpers
-  auth.php         sessions, role gates, CSRF helpers
-  helpers.php      formatting, documents scoring, plate/meter partials
-  layout.php       page_header()/page_footer()
+  db.php           PDO + SQLite concurrency settings
+  auth.php         secure sessions, role gates, CSRF
+  helpers.php      validation, dates, document scoring, state rules
+  layout.php       shared layout + security headers
+
 database/
-  schema.sql       full schema, commented
-  init.php         creates DB + seeds the demo data above
+  schema.sql       schema and integrity constraints
+  init.php         local database + demo data generator
+
+storage/
+  uploads/         private runtime document storage
+
+tests/
+  run.php          core business-rule smoke tests
+
+.github/workflows/
+  php.yml          PHP lint + tests on master and pull requests
 ```
 
-### Ideas the code encodes
+## Security/business rules already enforced
 
-- **The documents** — six core document categories (`CORE_DOCS` in `src/helpers.php`) drive a
-  0–100 completeness score and the segmented meter shown on every card. Docs can be *declared*
-  before a file is uploaded; buyers see the difference. `verified` exists on documents but is
-  currently only set by seed data (see roadmap).
-- **Speciality-anchored reviews** — mechanic reviews store `car_make`, so a profile can show
-  "4.8★ across 5 BMW inspections" instead of one blended number, and the marketplace filters
-  by declared speciality.
-- **Dealer auctions** — one auction per listing, dealer-only bidding, optional reserve,
-  lazy close on page load. Flagged throughout the UI as the premium/monetised feature.
-- **Safety** — check-ins with a trusted contact + expected-back time; viewing checklist;
-  VIN history check stubbed where a real API would plug in.
+- Password hashing with `password_hash()` / `password_verify()`
+- Session ID regeneration after login
+- HTTP-only, SameSite session cookie defaults
+- CSRF protection on state-changing forms, including logout
+- Prepared SQL statements
+- Seller ownership checks for listing/document actions
+- Private draft → publish listing lifecycle
+- At least one uploaded core document required before publishing
+- Document MIME sniffing, random filenames and 5 MB upload cap
+- Documents stored outside the public web root
+- Non-live listings hidden from non-owners
+- Only verified mechanics are publicly discoverable
+- Public users cannot self-register as mechanics/dealers
+- Auction creation limited to private sellers
+- Dealers cannot bid on their own vehicles
+- Auction bids are serialized with an SQLite `BEGIN IMMEDIATE` transaction
+- Minimum bid increment is re-checked inside the transaction
+- Inspection state transitions are enforced server-side
+- Safety check-ins validate future times and track overdue state
+- UTC storage with Europe/Dublin display conversion
+- Basic browser security headers/CSP
+- Runtime SQLite/upload files ignored by Git
 
-## Roadmap / TODOs
+## Tests
 
-Rough order of value, based on the research that shaped this build:
+```bash
+php tests/run.php
+find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
+```
 
-1. **Escrow / verified payment** — the highest-leverage safety feature and the natural
-   transaction-fee revenue line. Hold funds until ownership transfer is confirmed.
-2. **Mechanic verification workflow** — after a completed inspection, let the mechanic mark
-   documents as sighted/verified (the `verified` column and stamp UI already exist).
-3. **Check-in alerts** — SMS/WhatsApp to the trusted contact when a check-in goes overdue
-   (Twilio or similar). The data model is done; only the notifier is missing.
-4. **History-check API** — wire the VIN stub on `safety.php` (and auto-pull into new listings
-   from `sell.php`) to a provider; cache results as documents.
-5. **In-app messaging** — keep buyer↔seller contact on-platform until a viewing is agreed;
-   this is both a safety feature and the anti-disintermediation moat.
-6. **Payments for the auction tier** — listing fee or success fee; Stripe is the obvious start.
-7. **Photos** — real image uploads for listings (the `car_thumb()` placeholder is deliberate
-   dev-build minimalism).
-8. **Mechanic review submission** — reviews are seeded but there's no form yet; gate it on
-   completed inspections so every review is provably tied to a real job.
-9. Hardening for production: rate limiting, email verification, upload content-sniffing,
-   CSP headers, and moving uploads out of the web root.
+GitHub Actions runs both checks automatically.
 
-## Security notes (dev build)
+## Still required before a real launch
 
-CSRF tokens, password hashing, prepared statements and per-owner checks are in place.
-Uploads are extension-allowlisted and renamed but **not** content-sniffed; there's no rate
-limiting or email verification. Treat it as a local development build, not a deployable product.
+This remains a development build. Important production work still includes:
+
+- email verification and account recovery
+- an actual staff/admin workflow for dealer and mechanic approval
+- login/API rate limiting and abuse controls
+- malware scanning for uploaded documents
+- object storage rather than local filesystem uploads
+- privacy/retention controls for VRCs, finance letters and safety-contact data
+- audit logs for verification and privileged actions
+- background jobs for auction close/winner notifications
+- SMS/WhatsApp delivery for overdue safety check-ins
+- real VIN/history-check provider integration
+- payments/escrow and financial compliance work
+- listing photos and image moderation
+- in-app messaging
+- mechanic review submission gated to completed inspections
+- structured migrations instead of rebuilding the SQLite file
+
+## Product roadmap
+
+1. Mechanic document-verification workflow
+2. Check-in notifications
+3. Vehicle-history API
+4. In-app buyer/seller messaging
+5. Dealer-auction payments
+6. Escrow / verified transaction flow
+7. Listing photos
+8. Verified mechanic review submission
