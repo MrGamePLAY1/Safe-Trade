@@ -139,6 +139,11 @@ $myInspections = db_all(
       WHERE i.buyer_id = ? ORDER BY i.created_at DESC', [$u['id']]
 );
 
+db_exec(
+    "UPDATE safety_checkins SET status = 'overdue'
+      WHERE user_id = ? AND status = 'active' AND expected_back <= datetime('now')",
+    [$u['id']]
+);
 $myCheckins = db_all(
     "SELECT c.*, l.make, l.model, l.year FROM safety_checkins c
      LEFT JOIN listings l ON l.id = c.listing_id
@@ -148,6 +153,10 @@ $myCheckins = db_all(
 $mechProfile = $mechQueue = $mechSpecs = null;
 if ($u['role'] === 'mechanic') {
     $mechProfile = db_row('SELECT * FROM mechanic_profiles WHERE user_id = ?', [$u['id']]);
+    if (!$mechProfile) {
+        $profileId = db_exec('INSERT INTO mechanic_profiles (user_id, base_county) VALUES (?,?)', [$u['id'], $u['county'] ?: null]);
+        $mechProfile = db_row('SELECT * FROM mechanic_profiles WHERE id = ?', [$profileId]);
+    }
     $mechSpecs   = db_all('SELECT * FROM mechanic_specialties WHERE mechanic_id = ?', [$mechProfile['id']]);
     $mechQueue   = db_all(
         'SELECT i.*, bu.name AS buyer_name, bu.phone AS buyer_phone, l.make, l.model, l.year, l.county
@@ -170,8 +179,13 @@ if ($u['role'] === 'dealer') {
            JOIN auctions a ON a.id = b.auction_id
            JOIN listings l ON l.id = a.listing_id
           WHERE b.dealer_id = ?
-          GROUP BY a.id HAVING b.amount_eur = MAX(b.amount_eur)
-          ORDER BY a.ends_at DESC', [$u['id']]
+            AND b.id = (
+                SELECT b3.id FROM bids b3
+                 WHERE b3.auction_id = a.id AND b3.dealer_id = ?
+                 ORDER BY b3.amount_eur DESC, b3.created_at ASC, b3.id ASC
+                 LIMIT 1
+            )
+          ORDER BY a.ends_at DESC', [$u['id'], $u['id']]
     );
 }
 
