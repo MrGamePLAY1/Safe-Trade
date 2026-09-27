@@ -16,8 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $listingId = (int)$_POST['listing_id'];
 
         if (in_array($target, $allowed, true)) {
-            $owned = db_row('SELECT id FROM listings WHERE id = ? AND user_id = ?', [$listingId, $u['id']]);
+            $owned = db_row('SELECT id, status FROM listings WHERE id = ? AND user_id = ?', [$listingId, $u['id']]);
             if ($owned) {
+                if (!listing_transition_allowed($owned['status'], $target)) {
+                    flash('That listing status change is not allowed.', 'error');
+                    redirect('dashboard.php');
+                }
                 if ($target === 'live' && !listing_can_publish($listingId)) {
                     flash('Upload at least one core document file before publishing.', 'error');
                     redirect('dashboard.php');
@@ -363,8 +367,11 @@ page_header('Dashboard', 'dashboard');
                 <input type="hidden" name="listing_id" value="<?= $l['id'] ?>">
                 <select name="listing_status" onchange="this.form.submit()" style="width:auto;padding:6px 8px">
                   <option value="">Move to…</option>
-                  <?php foreach (['live'=>'Live','sale_agreed'=>'Sale agreed','sold'=>'Sold','archived'=>'Archived'] as $k => $label): ?>
-                    <?php if ($k !== $l['status']): ?><option value="<?= $k ?>"><?= $label ?></option><?php endif; ?>
+                  <?php
+                    $labels = ['live'=>'Live','sale_agreed'=>'Sale agreed','sold'=>'Sold','archived'=>'Archived'];
+                    foreach (listing_allowed_transitions($l['status']) as $k):
+                  ?>
+                    <option value="<?= $k ?>"><?= $labels[$k] ?></option>
                   <?php endforeach; ?>
                 </select>
               </form>
