@@ -12,47 +12,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Seller: change listing status
     if (isset($_POST['listing_status'], $_POST['listing_id'])) {
         $allowed = ['live','sale_agreed','sold','archived'];
-        if (in_array($_POST['listing_status'], $allowed, true)) {
-            db_exec('UPDATE listings SET status = ? WHERE id = ? AND user_id = ?',
-                [$_POST['listing_status'], (int)$_POST['listing_id'], $u['id']]);
-            flash('Listing updated.');
+        $target = $_POST['listing_status'];
+        $listingId = (int)$_POST['listing_id'];
+
+        if (in_array($target, $allowed, true)) {
+            $owned = db_row('SELECT id FROM listings WHERE id = ? AND user_id = ?', [$listingId, $u['id']]);
+            if ($owned) {
+                if ($target === 'live' && !listing_can_publish($listingId)) {
+                    flash('Upload at least one core document file before publishing.', 'error');
+                    redirect('dashboard.php');
+                }
+                db_exec('UPDATE listings SET status = ? WHERE id = ? AND user_id = ?', [$target, $listingId, $u['id']]);
+                if ($target !== 'live') {
+                    db_exec("UPDATE auctions SET status = 'cancelled' WHERE listing_id = ? AND status = 'open'", [$listingId]);
+                }
+                flash('Listing updated.');
+            }
         }
         redirect('dashboard.php');
     }
 
-    // Mechanic: move an inspection along
+    // Mechanic: move an inspection along using explicit state transitions.
     if (isset($_POST['inspection_status'], $_POST['inspection_id']) && $u['role'] === 'mechanic') {
-        $allowed = ['confirmed','completed','cancelled'];
-        if (in_array($_POST['inspection_status'], $allowed, true)) {
-            db_exec(
-                'UPDATE inspections SET status = ?
-                  WHERE id = ? AND mechanic_id = (SELECT id FROM mechanic_profiles WHERE user_id = ?)',
-                [$_POST['inspection_status'], (int)$_POST['inspection_id'], $u['id']]
-            );
-            flash('Inspection ' . $_POST['inspection_status'] . '.');
+        $inspectionId = (int)$_POST['inspection_id'];
+        $target = (string)$_POST['inspection_status'];
+        $row = db_row(
+            'SELECT i.status FROM inspections i
+              JOIN mechanic_profiles mp ON mp.id = i.mechanic_id
+             WHERE i.id = ? AND mp.user_id = ?',
+            [$inspectionId, $u['id']]
+        );
+        if ($row && inspection_transition_allowed($row['status'], $target, 'mechanic')) {
+            db_exec('UPDATE inspections SET status = ? WHERE id = ?', [$target, $inspectionId]);
+            flash('Inspection ' . $target . '.');
+        } else {
+            flash('That inspection status change is not allowed.', 'error');
         }
         redirect('dashboard.php');
     }
 
-    // Buyer: cancel own inspection request
+    // Buyer: cancel only a requested or confirmed inspection.
     if (isset($_POST['cancel_inspection'])) {
-        db_exec("UPDATE inspections SET status = 'cancelled' WHERE id = ? AND buyer_id = ?",
-            [(int)$_POST['cancel_inspection'], $u['id']]);
-        flash('Request cancelled.');
+        $inspectionId = (int)$_POST['cancel_inspection'];
+        $row = db_row('SELECT status FROM inspections WHERE id = ? AND buyer_id = ?', [$inspectionId, $u['id']]);
+        if ($row && inspection_transition_allowed($row['status'], 'cancelled', 'buyer')) {
+            db_exec("UPDATE inspections SET status = 'cancelled' WHERE id = ? AND buyer_id = ?", [$inspectionId, $u['id']]);
+            flash('Request cancelled.');
+        } else {
+            flash('That inspection can no longer be cancelled.', 'error');
+        }
         redirect('dashboard.php');
     }
 
     // Mechanic: profile + specialities
     if (isset($_POST['save_profile']) && $u['role'] === 'mechanic') {
+        $county = trim($_POST['base_county'] ?? '');
+        if (!valid_county($county)) {
+            flash('Choose a valid county.', 'error');
+            redirect('dashboard.php#profile');
+        }
+        $fee = max(0, min(10000, (int)($_POST['callout_fee_eur'] ?? 0)));
+        $years = max(0, min(80, (int)($_POST['years_experience'] ?? 0)));
         db_exec(
             'UPDATE mechanic_profiles SET headline = ?, bio = ?, base_county = ?, callout_fee_eur = ?, years_experience = ?
               WHERE user_id = ?',
             [
-                trim($_POST['headline'] ?? '') ?: null,
-                trim($_POST['bio'] ?? '') ?: null,
-                $_POST['base_county'] ?: null,
-                max(0, (int)($_POST['callout_fee_eur'] ?? 0)),
-                max(0, (int)($_POST['years_experience'] ?? 0)),
+                mb_substr(trim($_POST['headline'] ?? ''), 0, 160) ?: null,
+                mb_substr(trim($_POST['bio'] ?? ''), 0, 3000) ?: null,
+                $county ?: null,
+                $fee,
+                $years,
                 $u['id'],
             ]
         );
@@ -62,12 +91,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_specialty']) && $u['role'] === 'mechanic') {
         $make = trim($_POST['spec_make'] ?? '');
         if ($make !== '') {
-            db_exec(
-                'INSERT INTO mechanic_specialties (mechanic_id, make, focus)
-                 VALUES ((SELECT id FROM mechanic_profiles WHERE user_id = ?), ?, ?)',
-                [$u['id'], $make, trim($_POST['spec_focus'] ?? '') ?: null]
-            );
-            flash('Speciality added.');
+            $profile = db_row('SELECT id FROM mechanic_profiles WHERE user_id = ?', [$u['id']]);
+            $exists = $profile ? db_row(
+                'SELECT id FROM mechanic_specialties WHERE mechanic_id = ? AND lower(make) = lower(?)',
+                [$profile['id'], $make]
+            ) : null;
+            if ($exists) {
+                flash('That speciality is already on your profile.', 'warn');
+            } else {
+                db_exec(
+                    'INSERT INTO mechanic_specialties (mechanic_id, make, focus)
+                     VALUES ((SELECT id FROM mechanic_profiles WHERE user_id = ?), ?, ?)',
+                    [$u['id'], mb_substr($make, 0, 80), mb_substr(trim($_POST['spec_focus'] ?? ''), 0, 300) ?: null]
+                );
+                flash('Speciality added.');
+            }
         }
         redirect('dashboard.php#profile');
     }
@@ -86,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    ===================================================================== */
 $myListings = db_all(
     'SELECT l.*,
-            (SELECT COUNT(DISTINCT doc_type) FROM documents d WHERE d.listing_id = l.id AND d.doc_type != "other") AS doc_kinds,
+            (SELECT COUNT(DISTINCT doc_type) FROM documents d WHERE d.listing_id = l.id AND d.doc_type != "other" AND d.file_path IS NOT NULL) AS doc_kinds,
             (SELECT id FROM auctions a WHERE a.listing_id = l.id) AS auction_id
        FROM listings l WHERE user_id = ? ORDER BY created_at DESC', [$u['id']]
 );
@@ -159,7 +197,7 @@ page_header('Dashboard', 'dashboard');
                 <?php if ($q['message']): ?><br><span class="small muted">"<?= e($q['message']) ?>"</span><?php endif; ?>
               </td>
               <td><?= e($q['buyer_name']) ?><?= $q['status'] !== 'requested' && $q['buyer_phone'] ? '<br><span class="small mono">' . e($q['buyer_phone']) . '</span>' : '' ?></td>
-              <td class="mono small"><?= $q['scheduled_for'] ? date('D j M, H:i', strtotime($q['scheduled_for'])) : 'TBC' ?></td>
+              <td class="mono small"><?= $q['scheduled_for'] ? date_time_ireland($q['scheduled_for']) : 'TBC' ?></td>
               <td><span class="badge badge-<?= $q['status'] === 'completed' ? 'sold' : ($q['status'] === 'confirmed' ? 'live' : ($q['status'] === 'cancelled' ? 'archived' : 'sale_agreed')) ?>"><?= e($q['status']) ?></span></td>
               <td>
                 <?php if ($q['status'] === 'requested'): ?>
@@ -335,7 +373,7 @@ page_header('Dashboard', 'dashboard');
           <tr>
             <td><a href="mechanic.php?id=<?= $i['mech_profile_id'] ?>"><?= e($i['mechanic_name']) ?></a></td>
             <td><?= $i['make'] ? e($i['year'] . ' ' . $i['make'] . ' ' . $i['model']) : '<span class="muted">—</span>' ?></td>
-            <td class="mono small"><?= $i['scheduled_for'] ? date('D j M, H:i', strtotime($i['scheduled_for'])) : 'TBC' ?></td>
+            <td class="mono small"><?= $i['scheduled_for'] ? date_time_ireland($i['scheduled_for']) : 'TBC' ?></td>
             <td><span class="badge badge-<?= $i['status'] === 'completed' ? 'sold' : ($i['status'] === 'confirmed' ? 'live' : ($i['status'] === 'cancelled' ? 'archived' : 'sale_agreed')) ?>"><?= e($i['status']) ?></span></td>
             <td>
               <?php if (in_array($i['status'], ['requested','confirmed'], true)): ?>
@@ -365,8 +403,8 @@ page_header('Dashboard', 'dashboard');
           <tr>
             <td><?= $c['make'] ? e($c['year'] . ' ' . $c['make'] . ' ' . $c['model']) : '—' ?><?= $c['meeting_place'] ? '<br><span class="small muted">' . e($c['meeting_place']) . '</span>' : '' ?></td>
             <td><?= e($c['contact_name']) ?> <span class="small mono"><?= e($c['contact_phone']) ?></span></td>
-            <td class="mono small"><?= date('D j M, H:i', strtotime($c['expected_back'])) ?></td>
-            <td><span class="badge badge-<?= $c['status'] === 'active' ? 'sale_agreed' : 'live' ?>"><?= e(str_replace('_', ' ', $c['status'])) ?></span></td>
+            <td class="mono small"><?= date_time_ireland($c['expected_back']) ?></td>
+            <td><span class="badge badge-<?= $c['status'] === 'overdue' ? 'archived' : ($c['status'] === 'active' ? 'sale_agreed' : 'live') ?>"><?= e(str_replace('_', ' ', $c['status'])) ?></span></td>
           </tr>
         <?php endforeach; ?>
       </table>
