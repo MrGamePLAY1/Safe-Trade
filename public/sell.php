@@ -15,26 +15,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($old['make'] === '')  $errors[] = 'Make is required.';
     if ($old['model'] === '') $errors[] = 'Model is required.';
+    if (mb_strlen($old['make']) > 60 || mb_strlen($old['model']) > 80) $errors[] = 'Make or model is too long.';
+
     $year = (int)$old['year'];
     if ($year < 1980 || $year > (int)date('Y') + 1) $errors[] = 'Enter a valid year.';
+
     $price = (int)$old['price_eur'];
     if ($price <= 0) $errors[] = 'Enter an asking price.';
+
+    $mileage = $old['mileage_km'] === '' ? null : (int)$old['mileage_km'];
+    if ($mileage !== null && $mileage < 0) $errors[] = 'Mileage cannot be negative.';
+
+    $fuels = ['Petrol','Diesel','Hybrid','Plug-in Hybrid','Electric'];
+    $transmissions = ['Manual','Automatic'];
+    if ($old['fuel'] !== '' && !in_array($old['fuel'], $fuels, true)) $errors[] = 'Choose a valid fuel type.';
+    if ($old['transmission'] !== '' && !in_array($old['transmission'], $transmissions, true)) $errors[] = 'Choose a valid transmission.';
+    if (!valid_county($old['county'])) $errors[] = 'Choose a valid county.';
+
+    $old['vin'] = normalize_vin($old['vin']);
+    if (!valid_vin($old['vin'])) $errors[] = 'VIN must be 17 characters and cannot contain I, O or Q.';
+    $old['reg'] = strtoupper($old['reg']);
 
     if (!$errors) {
         $id = db_exec(
             'INSERT INTO listings (user_id, make, model, year, reg, vin, mileage_km, price_eur,
-                                   fuel, transmission, colour, county, description)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                   fuel, transmission, colour, county, description, status)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
             [
                 $u['id'], $old['make'], $old['model'], $year,
                 $old['reg'] ?: null, $old['vin'] ?: null,
-                (int)$old['mileage_km'] ?: null, $price,
+                $mileage, $price,
                 $old['fuel'] ?: null, $old['transmission'] ?: null,
                 $old['colour'] ?: null, $old['county'] ?: null,
-                $old['description'] ?: null,
+                $old['description'] ?: null, 'draft',
             ]
         );
-        flash('Listing created. Now add the vehicle documents — listings with full paperwork get taken seriously.');
+        flash('Draft created. Upload at least one core vehicle document, then publish when you are ready.');
         redirect('documents.php?listing=' . $id);
     }
 }
@@ -43,9 +59,8 @@ page_header('Sell your car', 'sell');
 ?>
 <div class="wrap section-tight">
   <h1>Sell your car</h1>
-  <p class="muted" style="max-width:60ch">Two steps: the car's details, then the documents.
-    The documents are what separate your ad from a one-line classified — it answers the buyer's
-    questions before they ask them.</p>
+  <p class="muted" style="max-width:60ch">Create the car as a private draft, add its documents, then publish it.
+    A listing cannot go live until at least one core document file has been uploaded.</p>
 
   <?php foreach ($errors as $err): ?>
     <div class="flash flash-error"><?= e($err) ?></div>
@@ -120,7 +135,7 @@ page_header('Sell your car', 'sell');
         </div>
       </div>
       <div class="form-actions">
-        <button class="btn btn-primary" type="submit">Create listing → add documents</button>
+        <button class="btn btn-primary" type="submit">Create draft → add documents</button>
       </div>
     </form>
   </div>
