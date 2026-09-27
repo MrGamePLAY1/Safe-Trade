@@ -40,6 +40,11 @@ check(inspection_transition_allowed('confirmed', 'completed', 'mechanic'), 'mech
 check(inspection_transition_allowed('confirmed', 'cancelled', 'buyer'), 'buyer can cancel confirmed inspection');
 check(!inspection_transition_allowed('completed', 'cancelled', 'buyer'), 'completed inspection cannot be cancelled');
 
+check(listing_transition_allowed('draft', 'live'), 'draft listing can be published');
+check(!listing_transition_allowed('draft', 'sold'), 'draft listing cannot jump straight to sold');
+check(listing_transition_allowed('sale_agreed', 'live'), 'sale agreed listing can return to live');
+check(!listing_transition_allowed('sold', 'live'), 'sold listing cannot return directly to live');
+
 check(valid_vin(''), 'VIN remains optional');
 check(valid_vin('WVWZZZAUZJP765432'), 'valid 17 character VIN is accepted');
 check(!valid_vin('INVALIDVIN'), 'malformed VIN is rejected');
