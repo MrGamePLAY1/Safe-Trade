@@ -11,6 +11,13 @@ require_once __DIR__ . '/helpers.php';
 
 function page_header(string $title, string $active = ''): void
 {
+    if (!headers_sent()) {
+        header('X-Content-Type-Options: nosniff');
+        header('X-Frame-Options: DENY');
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+        header("Permissions-Policy: geolocation=(), camera=(), microphone=()");
+        header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+    }
     $u = current_user();
     $nav = [
         'listings'  => ['listings.php',  'Buy'],
@@ -45,7 +52,10 @@ function page_header(string $title, string $active = ''): void
     <div class="head-auth">
       <?php if ($u): ?>
         <a href="dashboard.php" class="btn btn-ghost-light <?= $active === 'dashboard' ? 'active' : '' ?>"><?= e(explode(' ', $u['name'])[0]) ?></a>
-        <a href="logout.php" class="head-link">Sign out</a>
+        <form method="post" action="logout.php" class="inline-form">
+          <?= csrf_field() ?>
+          <button type="submit" class="head-link head-link-button">Sign out</button>
+        </form>
       <?php else: ?>
         <a href="login.php" class="head-link">Sign in</a>
         <a href="register.php" class="btn btn-primary btn-sm">Create account</a>
