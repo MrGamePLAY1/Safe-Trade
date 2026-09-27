@@ -9,11 +9,21 @@
 
 declare(strict_types=1);
 
-$dbFile = __DIR__ . '/safetrade.sqlite';
+date_default_timezone_set('UTC');
 
-if (in_array('--fresh', $argv ?? [], true) && file_exists($dbFile)) {
-    unlink($dbFile);
-    echo "Removed existing database.\n";
+$dbFile = __DIR__ . '/safetrade.sqlite';
+$uploadDir = __DIR__ . '/../storage/uploads';
+
+if (in_array('--fresh', $argv ?? [], true)) {
+    if (file_exists($dbFile)) {
+        unlink($dbFile);
+        echo "Removed existing database.\n";
+    }
+    if (is_dir($uploadDir)) {
+        foreach (glob($uploadDir . '/demo-doc-*') ?: [] as $file) {
+            @unlink($file);
+        }
+    }
 }
 
 if (file_exists($dbFile)) {
@@ -55,36 +65,42 @@ $corolla = insert($pdo, 'listings', [
     'reg'=>'191-D-21744', 'vin'=>'SB1KE3JE10E123456', 'mileage_km'=>82000, 'price_eur'=>21950,
     'fuel'=>'Hybrid', 'transmission'=>'Automatic', 'colour'=>'Silver', 'county'=>'Dublin',
     'description'=>"One owner from new, full Toyota main-dealer service history. NCT passed last month with no advisories. Hybrid battery health report included in the documents. Selling as we've gone down to one car.",
+    'status'=>'live',
 ]);
 $bmw = insert($pdo, 'listings', [
     'user_id'=>$conor, 'make'=>'BMW', 'model'=>'320d M Sport', 'year'=>2016,
     'reg'=>'161-C-8812', 'vin'=>'WBA8C5102GK654321', 'mileage_km'=>148000, 'price_eur'=>15500,
     'fuel'=>'Diesel', 'transmission'=>'Manual', 'colour'=>'Estoril Blue', 'county'=>'Cork',
     'description'=>"Timing chain done at 130k with receipts (in the documents). Two keys, new tyres front and back. A genuinely minded car — happy for any inspection.",
+    'status'=>'live',
 ]);
 $golf = insert($pdo, 'listings', [
     'user_id'=>$niamh, 'make'=>'Volkswagen', 'model'=>'Golf 1.6 TDI', 'year'=>2018,
     'reg'=>'182-G-4471', 'vin'=>'WVWZZZAUZJP765432', 'mileage_km'=>112000, 'price_eur'=>16750,
     'fuel'=>'Diesel', 'transmission'=>'Manual', 'colour'=>'Tungsten Grey', 'county'=>'Galway',
     'description'=>"Comfortline spec, adaptive cruise, App-Connect. Serviced every 15k — most receipts uploaded, chasing the last two from the garage.",
+    'status'=>'live',
 ]);
 $focus = insert($pdo, 'listings', [
     'user_id'=>$conor, 'make'=>'Ford', 'model'=>'Focus Zetec', 'year'=>2015,
     'reg'=>'151-C-30265', 'vin'=>null, 'mileage_km'=>176000, 'price_eur'=>7900,
     'fuel'=>'Petrol', 'transmission'=>'Manual', 'colour'=>'Race Red', 'county'=>'Cork',
     'description'=>"Honest starter car. High miles but motorway ones. NCT to 03/27. A few stone chips, priced accordingly.",
+    'status'=>'live',
 ]);
 $tucson = insert($pdo, 'listings', [
     'user_id'=>$aoife, 'make'=>'Hyundai', 'model'=>'Tucson Executive', 'year'=>2020,
     'reg'=>'201-D-15098', 'vin'=>'TMAJ3815ALJ112233', 'mileage_km'=>64000, 'price_eur'=>26400,
     'fuel'=>'Diesel', 'transmission'=>'Automatic', 'colour'=>'Phantom Black', 'county'=>'Dublin',
     'description'=>"Balance of manufacturer warranty until Nov 2027. Full document set being uploaded this week.",
+    'status'=>'live',
 ]);
 $octavia = insert($pdo, 'listings', [
     'user_id'=>$niamh, 'make'=>'Skoda', 'model'=>'Octavia Ambition', 'year'=>2017,
     'reg'=>'171-G-9930', 'vin'=>'TMBJG7NE0H0334455', 'mileage_km'=>131000, 'price_eur'=>12250,
     'fuel'=>'Diesel', 'transmission'=>'Manual', 'colour'=>'Moon White', 'county'=>'Galway',
     'description'=>"Huge boot, cheap tax. Finance cleared — cert in the documents. Open to dealer bids via auction.",
+    'status'=>'live',
 ]);
 echo "Listings seeded.\n";
 
@@ -109,8 +125,21 @@ $docs = [
     [$octavia,'finance_check','Finance clearance certificate','HP settled in full, 2025.',1],
     [$octavia,'vrc','Vehicle Registration Cert (logbook)',null,0],
 ];
+if (!is_dir($uploadDir)) {
+    mkdir($uploadDir, 0775, true);
+}
+$demoPng = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=');
 foreach ($docs as [$lid,$type,$title,$note,$ver]) {
-    insert($pdo, 'documents', ['listing_id'=>$lid,'doc_type'=>$type,'title'=>$title,'note'=>$note,'verified'=>$ver]);
+    $fileName = 'demo-doc-' . $lid . '-' . $type . '.png';
+    file_put_contents($uploadDir . '/' . $fileName, $demoPng);
+    insert($pdo, 'documents', [
+        'listing_id'=>$lid,
+        'doc_type'=>$type,
+        'title'=>$title,
+        'note'=>$note,
+        'verified'=>$ver,
+        'file_path'=>$fileName,
+    ]);
 }
 echo "Documents seeded.\n";
 
@@ -139,17 +168,17 @@ echo "Mechanics seeded.\n";
 // --- inspections + reviews -------------------------------------------------
 $insp1 = insert($pdo, 'inspections', [
     'mechanic_id'=>$dara,'buyer_id'=>$niamh,'listing_id'=>$bmw,
-    'scheduled_for'=>date('Y-m-d H:i', strtotime('-20 days')),'status'=>'completed',
+    'scheduled_for'=>gmgmdate('Y-m-d H:i:s', strtotime('-20 days')),'status'=>'completed',
     'message'=>'Viewing Saturday morning if you can make Cork?',
 ]);
 $insp2 = insert($pdo, 'inspections', [
     'mechanic_id'=>$sinead,'buyer_id'=>$conor,'listing_id'=>$corolla,
-    'scheduled_for'=>date('Y-m-d H:i', strtotime('-9 days')),'status'=>'completed',
+    'scheduled_for'=>gmgmdate('Y-m-d H:i:s', strtotime('-9 days')),'status'=>'completed',
     'message'=>null,
 ]);
 insert($pdo, 'inspections', [
     'mechanic_id'=>$dara,'buyer_id'=>$aoife,'listing_id'=>$golf,
-    'scheduled_for'=>date('Y-m-d H:i', strtotime('+3 days')),'status'=>'requested',
+    'scheduled_for'=>gmgmdate('Y-m-d H:i:s', strtotime('+3 days')),'status'=>'requested',
     'message'=>'Golf in Galway — could you travel, or recommend someone local?',
 ]);
 
@@ -171,7 +200,7 @@ echo "Inspections + reviews seeded.\n";
 // --- auction ---------------------------------------------------------------
 $auc = insert($pdo, 'auctions', [
     'listing_id'=>$octavia, 'reserve_eur'=>11000,
-    'ends_at'=>date('Y-m-d H:i:s', strtotime('+3 days 4 hours')), 'status'=>'open',
+    'ends_at'=>gmdate('Y-m-d H:i:s', strtotime('+3 days 4 hours')), 'status'=>'open',
 ]);
 insert($pdo, 'bids', ['auction_id'=>$auc,'dealer_id'=>$dealer, 'amount_eur'=>10200]);
 insert($pdo, 'bids', ['auction_id'=>$auc,'dealer_id'=>$dealer2,'amount_eur'=>10650]);
