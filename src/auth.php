@@ -93,7 +93,9 @@ function csrf_field(): string
 /** Call at the top of every POST handler. */
 function csrf_check(): void
 {
-    if (($_POST['csrf'] ?? '') !== ($_SESSION['csrf'] ?? null)) {
+    $sent = (string)($_POST['csrf'] ?? '');
+    $stored = (string)($_SESSION['csrf'] ?? '');
+    if ($sent === '' || $stored === '' || !hash_equals($stored, $sent)) {
         http_response_code(403);
         exit('Invalid request token. Go back and try again.');
     }
