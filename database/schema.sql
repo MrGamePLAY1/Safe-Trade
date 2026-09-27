@@ -23,14 +23,14 @@ CREATE TABLE listings (
   year         INTEGER NOT NULL,
   reg          TEXT,              -- e.g. 191-D-12345
   vin          TEXT,
-  mileage_km   INTEGER,
-  price_eur    INTEGER NOT NULL,
+  mileage_km   INTEGER CHECK (mileage_km IS NULL OR mileage_km >= 0),
+  price_eur    INTEGER NOT NULL CHECK (price_eur > 0),
   fuel         TEXT,
   transmission TEXT,
   colour       TEXT,
   county       TEXT,
   description  TEXT,
-  status       TEXT NOT NULL DEFAULT 'live'
+  status       TEXT NOT NULL DEFAULT 'draft'
                CHECK (status IN ('draft','live','sale_agreed','sold','archived')),
   created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -42,9 +42,9 @@ CREATE TABLE documents (
   listing_id  INTEGER NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
   doc_type    TEXT NOT NULL,   -- nct_cert | service_history | vrc | timing_belt | finance_check | crash_report | other
   title       TEXT NOT NULL,
-  file_path   TEXT,            -- stored under public/uploads (nullable: a doc can be "declared" before upload)
+  file_path   TEXT,            -- stored outside the web root in storage/uploads
   note        TEXT,
-  verified    INTEGER NOT NULL DEFAULT 0,  -- TODO: set by mechanic after inspection (workflow not built yet)
+  verified    INTEGER NOT NULL DEFAULT 0 CHECK (verified IN (0,1)),  -- TODO: set by mechanic after inspection (workflow not built yet)
   uploaded_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -65,7 +65,8 @@ CREATE TABLE mechanic_specialties (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   mechanic_id INTEGER NOT NULL REFERENCES mechanic_profiles(id) ON DELETE CASCADE,
   make        TEXT NOT NULL,
-  focus       TEXT             -- e.g. 'N47 timing chain wear', 'hybrid battery health'
+  focus       TEXT,            -- e.g. 'N47 timing chain wear', 'hybrid battery health'
+  UNIQUE (mechanic_id, make)
 );
 
 CREATE TABLE inspections (
@@ -98,7 +99,7 @@ CREATE TABLE mechanic_reviews (
 CREATE TABLE auctions (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   listing_id  INTEGER NOT NULL UNIQUE REFERENCES listings(id) ON DELETE CASCADE,
-  reserve_eur INTEGER,
+  reserve_eur INTEGER CHECK (reserve_eur IS NULL OR reserve_eur >= 0),
   ends_at     TEXT NOT NULL,
   status      TEXT NOT NULL DEFAULT 'open'
               CHECK (status IN ('open','closed','cancelled')),
@@ -109,7 +110,7 @@ CREATE TABLE bids (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   auction_id INTEGER NOT NULL REFERENCES auctions(id) ON DELETE CASCADE,
   dealer_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  amount_eur INTEGER NOT NULL,
+  amount_eur INTEGER NOT NULL CHECK (amount_eur > 0),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -132,3 +133,6 @@ CREATE INDEX idx_listings_status  ON listings(status);
 CREATE INDEX idx_documents_listing ON documents(listing_id);
 CREATE INDEX idx_bids_auction      ON bids(auction_id);
 CREATE INDEX idx_reviews_mechanic  ON mechanic_reviews(mechanic_id);
+CREATE INDEX idx_inspections_mechanic ON inspections(mechanic_id, status);
+CREATE INDEX idx_inspections_buyer    ON inspections(buyer_id, status);
+CREATE INDEX idx_checkins_user_status ON safety_checkins(user_id, status);
