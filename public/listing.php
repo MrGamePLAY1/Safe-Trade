@@ -145,7 +145,7 @@ page_header($l['year'] . ' ' . $l['make'] . ' ' . $l['model'], 'listings');
         <h3>Seller</h3>
         <p style="margin:0 0 4px"><strong><?= e($l['seller_name']) ?></strong></p>
         <p class="muted small" style="margin:0">
-          <?= e($l['seller_county'] ?: '—') ?> · Member since <?= date('M Y', strtotime($l['seller_since'])) ?>
+          <?= e($l['seller_county'] ?: '—') ?> · Member since <?= date_ireland($l['seller_since'], 'M Y') ?>
         </p>
         <p class="muted small" style="margin-top:10px">
           In-app messaging isn't built yet — see the README roadmap. For now contact details would be exchanged after sign-in.
