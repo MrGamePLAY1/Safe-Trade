@@ -5,7 +5,7 @@ require_once __DIR__ . '/../src/layout.php';
 $featured = db_row(
     "SELECT l.*, COUNT(DISTINCT d.doc_type) AS doc_kinds
        FROM listings l
-       LEFT JOIN documents d ON d.listing_id = l.id AND d.doc_type != 'other'
+       LEFT JOIN documents d ON d.listing_id = l.id AND d.doc_type != 'other' AND d.file_path IS NOT NULL
       WHERE l.status = 'live'
       GROUP BY l.id
       ORDER BY doc_kinds DESC, l.created_at DESC
@@ -33,7 +33,7 @@ page_header('Buy and sell cars with the full paperwork', 'home');
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
-      <p class="eyebrow">Private sales · Verified paperwork · Ireland</p>
+      <p class="eyebrow">Private sales · Vehicle paperwork · Ireland</p>
       <h1>Buy your car <br>Safely.</h1>
       <p class="lede">Every listing on Safe Trade carries car documents: NCT cert, service history,
         finance clearance, the lot. Also hire a specialist mechanic to check it before you hand over a cent.</p>
@@ -78,7 +78,7 @@ page_header('Buy and sell cars with the full paperwork', 'home');
       <div class="dc-body">
         <h3><?= e($featured['year'] . ' ' . $featured['make'] . ' ' . $featured['model']) ?></h3>
         <p class="muted small" style="margin-bottom:10px">
-          <?= km((int)$featured['mileage_km']) ?> · <?= e($featured['fuel']) ?> · <?= e($featured['county']) ?>
+          <?= km($featured['mileage_km']) ?> · <?= e($featured['fuel']) ?> · <?= e($featured['county']) ?>
         </p>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
           <?= reg_plate($featured['reg']) ?>
@@ -132,7 +132,7 @@ page_header('Buy and sell cars with the full paperwork', 'home');
               <span class="price"><?= price_eur((int)$l['price_eur']) ?></span>
             </div>
             <div class="card-meta">
-              <span><?= km((int)$l['mileage_km']) ?></span>
+              <span><?= km($l['mileage_km']) ?></span>
               <span><?= e($l['fuel']) ?></span>
               <span><?= e($l['county']) ?></span>
             </div>
