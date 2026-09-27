@@ -87,6 +87,10 @@ a:hover { text-decoration: underline; }
 .head-auth { display: flex; align-items: center; gap: 14px; }
 .head-link { color: #C8CFCB; font-size: .92rem; }
 .head-link:hover { color: #fff; }
+.head-link-button {
+  border: 0; background: transparent; padding: 0; font: inherit; cursor: pointer;
+}
+.head-link-button:hover { text-decoration: underline; }
 
 /* ---------- the plate (signature element) ---------- */
 .plate {
@@ -195,6 +199,7 @@ a:hover { text-decoration: underline; }
   position: relative;
 }
 .meter .seg.on { background: var(--stamp); border-color: var(--stamp-dark); }
+.meter .seg.declared { background: var(--hazard-wash); border-color: var(--hazard); }
 .meter .seg.on.verified::after {
   content: "✓"; position: absolute; inset: 0;
   color: #fff; font-size: 9px; line-height: 9px;
