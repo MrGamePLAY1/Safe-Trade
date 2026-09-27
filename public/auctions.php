@@ -3,14 +3,14 @@ require_once __DIR__ . '/../src/layout.php';
 
 // Lazy close: any open auction past its end time gets closed on page load.
 // TODO: replace with a cron/queue job so winners are notified promptly.
-db_exec("UPDATE auctions SET status = 'closed' WHERE status = 'open' AND ends_at <= datetime('now','localtime')");
+db_exec("UPDATE auctions SET status = 'closed' WHERE status = 'open' AND ends_at <= datetime('now')");
 
 $u = current_user();
 
 /* ---- seller creates an auction ---- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
-    $u = require_login();
+    $u = require_role('private');
     $listingId = (int)($_POST['listing_id'] ?? 0);
     $listing = db_row(
         "SELECT * FROM listings WHERE id = ? AND user_id = ? AND status = 'live'",
@@ -24,11 +24,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('That car already has an auction.', 'warn');
         redirect('auctions.php');
     }
-    $reserve = (int)($_POST['reserve_eur'] ?? 0) ?: null;
-    $days    = max(1, min(7, (int)($_POST['days'] ?? 3)));
+    $reserveRaw = trim($_POST['reserve_eur'] ?? '');
+    $reserve = $reserveRaw === '' ? null : (int)$reserveRaw;
+    if ($reserve !== null && $reserve < 0) {
+        flash('Reserve cannot be negative.', 'error');
+        redirect('auctions.php#create');
+    }
+    $days = (int)($_POST['days'] ?? 3);
+    if (!in_array($days, [1,3,5,7], true)) {
+        $days = 3;
+    }
     $aid = db_exec(
         'INSERT INTO auctions (listing_id, reserve_eur, ends_at) VALUES (?,?,?)',
-        [$listingId, $reserve, date('Y-m-d H:i:s', strtotime("+{$days} days"))]
+        [$listingId, $reserve, gmdate('Y-m-d H:i:s', time() + ($days * 86400))]
     );
     flash('Auction is live — dealers can bid for the next ' . $days . ' day' . ($days == 1 ? '' : 's') . '.');
     redirect('auction.php?id=' . $aid);
@@ -59,7 +67,7 @@ page_header('Dealer auctions', 'auctions');
 <div class="wrap section-tight">
   <h1>Dealer auctions</h1>
   <p class="muted" style="max-width:64ch">Skip the "get three quotes" run-around: open your car to the trade
-    and let vetted dealers bid against each other. Buying trade-in convenience shouldn't mean taking the first offer.</p>
+    and let approved dealer accounts bid against each other. Buying trade-in convenience shouldn't mean taking the first offer.</p>
 
   <div class="premium-note" style="margin-bottom:24px">
     <strong>Premium feature.</strong> In production this is the paid tier (listing fee or a cut on completion).
@@ -79,7 +87,7 @@ page_header('Dealer auctions', 'auctions');
               <h3><?= e($a['year'] . ' ' . $a['make'] . ' ' . $a['model']) ?></h3>
             </div>
             <div class="card-meta">
-              <span><?= km((int)$a['mileage_km']) ?></span>
+              <span><?= km($a['mileage_km']) ?></span>
               <span><?= e($a['county']) ?></span>
               <span><?= $a['bid_count'] ?> bid<?= $a['bid_count'] == 1 ? '' : 's' ?></span>
             </div>
@@ -97,7 +105,7 @@ page_header('Dealer auctions', 'auctions');
   <?php if (!$u): ?>
     <div class="panel">
       <p style="margin:0"><a href="login.php?next=auctions.php">Sign in</a> with a private account to auction one of your listings,
-        or <a href="register.php">register as a dealer</a> to bid.</p>
+        Dealer access is granted separately after verification.</p>
     </div>
   <?php elseif ($u['role'] === 'dealer'): ?>
     <div class="panel">
