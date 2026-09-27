@@ -28,8 +28,7 @@ if (!$isOwner && $l['status'] !== 'live') {
 $docs    = listing_docs($id);
 $dos     = documents($docs);
 $auction = db_row('SELECT * FROM auctions WHERE listing_id = ?', [$id]);
-$otherDocs = array_filter($docs, fn($d) => $d['doc_type'] === 'other');
-
+ 
 page_header($l['year'] . ' ' . $l['make'] . ' ' . $l['model'], 'listings');
 ?>
 <div class="wrap section-tight">
@@ -106,7 +105,7 @@ page_header($l['year'] . ' ' . $l['make'] . ' ' . $l['model'], 'listings');
               <li>
                 <div class="doc-row">
                   <strong><?= e($d['title']) ?></strong>
-                  <?php if ($d['verified']): ?><span class="stamp">Verified</span><?php endif; ?>
+                  <?php if ($d['verified'] && $d['file_path']): ?><span class="stamp">Verified</span><?php endif; ?>
                 </div>
                 <?php if ($d['note']): ?><p class="small muted" style="margin:4px 0 0"><?= e($d['note']) ?></p><?php endif; ?>
                 <?php if ($d['file_path'] && $u): ?>
@@ -155,7 +154,7 @@ page_header($l['year'] . ' ' . $l['make'] . ' ' . $l['model'], 'listings');
       <?php if ($isOwner && !$auction && $l['status'] === 'live'): ?>
         <div class="panel">
           <h3>Open to the trade</h3>
-          <p class="muted small">Put this car in front of vetted dealers and let them bid. Premium feature — free in the dev build.</p>
+          <p class="muted small">Put this car in front of approved dealer accounts and let them bid. Premium feature — free in the dev build.</p>
           <a class="btn btn-blue btn-sm" href="auctions.php#create">Create dealer auction</a>
         </div>
       <?php endif; ?>
