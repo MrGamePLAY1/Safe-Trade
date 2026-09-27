@@ -72,6 +72,23 @@ function valid_vin(string $vin): bool
     return $vin === '' || preg_match('/^[A-HJ-NPR-Z0-9]{17}$/', $vin) === 1;
 }
 
+function listing_allowed_transitions(string $from): array
+{
+    return match ($from) {
+        'draft'        => ['live', 'archived'],
+        'live'         => ['sale_agreed', 'sold', 'archived'],
+        'sale_agreed'  => ['live', 'sold', 'archived'],
+        'sold'         => ['archived'],
+        'archived'     => ['live'],
+        default        => [],
+    };
+}
+
+function listing_transition_allowed(string $from, string $to): bool
+{
+    return in_array($to, listing_allowed_transitions($from), true);
+}
+
 function inspection_transition_allowed(string $from, string $to, string $actor): bool
 {
     $allowed = [
