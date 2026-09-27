@@ -10,18 +10,35 @@ if (!$l || (int)$l['user_id'] !== (int)$u['id']) {
     redirect('dashboard.php');
 }
 
-$uploadDir = __DIR__ . '/uploads';
-$allowedExt = ['pdf', 'jpg', 'jpeg', 'png'];
+$uploadDir = __DIR__ . '/../storage/uploads';
+$allowedMimes = [
+    'application/pdf' => 'pdf',
+    'image/jpeg'      => 'jpg',
+    'image/png'       => 'png',
+];
+if (!is_dir($uploadDir)) {
+    mkdir($uploadDir, 0775, true);
+}
 
-/* ---- handle POST: add or delete a document ---- */
+/* ---- handle POST: publish, add or delete a document ---- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
+
+    if (isset($_POST['publish_listing'])) {
+        if (!listing_can_publish($id)) {
+            flash('Upload at least one core vehicle document before publishing.', 'error');
+            redirect('documents.php?listing=' . $id);
+        }
+        db_exec("UPDATE listings SET status = 'live' WHERE id = ? AND user_id = ?", [$id, $u['id']]);
+        flash('Listing published.');
+        redirect('listing.php?id=' . $id);
+    }
 
     if (isset($_POST['delete_doc'])) {
         $doc = db_row('SELECT * FROM documents WHERE id = ? AND listing_id = ?', [(int)$_POST['delete_doc'], $id]);
         if ($doc) {
             if ($doc['file_path'] && file_exists($uploadDir . '/' . $doc['file_path'])) {
-                unlink($uploadDir . '/' . $doc['file_path']);
+                @unlink($uploadDir . '/' . $doc['file_path']);
             }
             db_exec('DELETE FROM documents WHERE id = ?', [$doc['id']]);
             flash('Document removed.');
@@ -41,27 +58,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($title === '') {
         $title = $type === 'other' ? 'Additional document' : CORE_DOCS[$type];
     }
+    if (mb_strlen($title) > 160 || mb_strlen($note) > 500) {
+        flash('Document title or note is too long.', 'error');
+        redirect('documents.php?listing=' . $id);
+    }
 
-    // Optional file upload. Basic dev-build validation: extension allowlist,
-    // 5 MB cap, random stored name. TODO: content-type sniffing + virus scan for production.
     $storedName = null;
     if (!empty($_FILES['file']['name'])) {
-        $f = $_FILES['file'];
-        $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
-        if ($f['error'] !== UPLOAD_ERR_OK) {
+        $file = $_FILES['file'];
+        if ($file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'])) {
             flash('Upload failed — try again.', 'error');
             redirect('documents.php?listing=' . $id);
         }
-        if (!in_array($ext, $allowedExt, true)) {
-            flash('Only PDF, JPG or PNG files are accepted.', 'error');
+        if ((int)$file['size'] <= 0 || (int)$file['size'] > 5 * 1024 * 1024) {
+            flash('File must be between 1 byte and 5 MB.', 'error');
             redirect('documents.php?listing=' . $id);
         }
-        if ($f['size'] > 5 * 1024 * 1024) {
-            flash('File too large — 5 MB max.', 'error');
+
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo->file($file['tmp_name']) ?: '';
+        if (!isset($allowedMimes[$mime])) {
+            flash('Only genuine PDF, JPG or PNG files are accepted.', 'error');
             redirect('documents.php?listing=' . $id);
         }
-        $storedName = bin2hex(random_bytes(12)) . '.' . $ext;
-        if (!move_uploaded_file($f['tmp_name'], $uploadDir . '/' . $storedName)) {
+
+        $storedName = bin2hex(random_bytes(16)) . '.' . $allowedMimes[$mime];
+        if (!move_uploaded_file($file['tmp_name'], $uploadDir . '/' . $storedName)) {
             flash('Could not save the file.', 'error');
             redirect('documents.php?listing=' . $id);
         }
@@ -71,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'INSERT INTO documents (listing_id, doc_type, title, note, file_path) VALUES (?,?,?,?,?)',
         [$id, $type, $title, $note ?: null, $storedName]
     );
-    flash('Document added.');
+    flash($storedName ? 'Document uploaded.' : 'Document declared. Upload the file when you have it.');
     redirect('documents.php?listing=' . $id);
 }
 
@@ -83,7 +105,23 @@ page_header('Documents — ' . $l['make'] . ' ' . $l['model'], 'sell');
 <div class="wrap section-tight">
   <p class="small"><a href="listing.php?id=<?= $id ?>">← Back to listing</a></p>
   <h1>Add vehicle documents</h1>
-  <p class="muted"><?= e($l['year'] . ' ' . $l['make'] . ' ' . $l['model']) ?> · <?= reg_plate($l['reg']) ?></p>
+  <p class="muted">
+    <?= e($l['year'] . ' ' . $l['make'] . ' ' . $l['model']) ?> · <?= reg_plate($l['reg']) ?>
+    · <?= status_badge($l['status']) ?>
+  </p>
+
+  <?php if ($l['status'] === 'draft'): ?>
+    <div class="premium-note" style="margin:18px 0">
+      <strong>This listing is private.</strong> Upload at least one core document file before publishing it.
+      <?php if ($dos['present'] > 0): ?>
+        <form method="post" class="inline-form" style="margin-left:10px">
+          <?= csrf_field() ?>
+          <input type="hidden" name="listing" value="<?= $id ?>">
+          <button class="btn btn-primary btn-sm" name="publish_listing" value="1">Publish listing</button>
+        </form>
+      <?php endif; ?>
+    </div>
+  <?php endif; ?>
 
   <div class="detail-grid" style="margin-top:20px">
     <div>
@@ -97,8 +135,9 @@ page_header('Documents — ' . $l['make'] . ' ' . $l['model'], 'sell');
             <select id="doc_type" name="doc_type" required>
               <option value="">— Choose —</option>
               <?php foreach (CORE_DOCS as $key => $label): ?>
-                <option value="<?= $key ?>" <?= $dos['slots'][$key]['present'] ? '' : '' ?>>
-                  <?= e($label) ?><?= $dos['slots'][$key]['present'] ? ' ✓ (already added)' : '' ?>
+                <?php $slot = $dos['slots'][$key]; ?>
+                <option value="<?= $key ?>">
+                  <?= e($label) ?><?= $slot['verified'] ? ' ✓ verified' : ($slot['present'] ? ' ✓ uploaded' : ($slot['declared'] ? ' · declared' : '')) ?>
                 </option>
               <?php endforeach; ?>
               <option value="other">Other (photos of receipts, extras…)</option>
@@ -106,17 +145,17 @@ page_header('Documents — ' . $l['make'] . ' ' . $l['model'], 'sell');
           </div>
           <div class="field" style="margin-bottom:14px">
             <label for="title">Title</label>
-            <input type="text" id="title" name="title" placeholder="e.g. NCT certificate to 07/2027">
+            <input type="text" id="title" name="title" maxlength="160" placeholder="e.g. NCT certificate to 07/2027">
           </div>
           <div class="field" style="margin-bottom:14px">
             <label for="note">Note (optional)</label>
-            <input type="text" id="note" name="note" placeholder="e.g. Passed with no advisories">
+            <input type="text" id="note" name="note" maxlength="500" placeholder="e.g. Passed with no advisories">
           </div>
           <div class="field" style="margin-bottom:14px">
             <label for="file">File — PDF, JPG or PNG, max 5 MB (optional)</label>
-            <input type="file" id="file" name="file" accept=".pdf,.jpg,.jpeg,.png">
+            <input type="file" id="file" name="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png">
             <p class="small muted" style="margin:6px 0 0">
-              You can declare a document now and upload the scan later — buyers see the difference.
+              A declaration is shown separately from an uploaded file and does not increase the completeness score.
             </p>
           </div>
           <button class="btn btn-primary" type="submit">Add document</button>
@@ -124,9 +163,8 @@ page_header('Documents — ' . $l['make'] . ' ' . $l['model'], 'sell');
       </div>
 
       <div class="todo-note" style="margin-top:18px">
-        <strong>Roadmap:</strong> the "Verified" stamp is currently set in the database only.
-        The planned flow is that a mechanic who completes an inspection can verify documents
-        they've sighted — see README.
+        <strong>Verification:</strong> uploaded is not the same as verified. The verified stamp is reserved
+        for evidence checked by a trusted workflow; the mechanic verification flow is still on the roadmap.
       </div>
     </div>
 
@@ -134,7 +172,7 @@ page_header('Documents — ' . $l['make'] . ' ' . $l['model'], 'sell');
       <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:baseline">
           <h3 style="margin:0">Documents status</h3>
-          <span class="mono small"><?= $dos['present'] ?>/<?= $dos['total'] ?> core</span>
+          <span class="mono small"><?= $dos['present'] ?>/<?= $dos['total'] ?> uploaded</span>
         </div>
         <div style="margin:12px 0"><?= documents_meter($dos, true) ?></div>
 
@@ -146,11 +184,15 @@ page_header('Documents — ' . $l['make'] . ' ' . $l['model'], 'sell');
                   <div>
                     <strong><?= e($d['title']) ?></strong>
                     <span class="small muted"> · <?= e(CORE_DOCS[$d['doc_type']] ?? 'Other') ?></span>
-                    <?php if ($d['verified']): ?> <span class="stamp">Verified</span><?php endif; ?>
-                    <?php if (!$d['file_path']): ?><br><span class="small muted">Declared — no file yet</span><?php endif; ?>
+                    <?php if ($d['verified'] && $d['file_path']): ?> <span class="stamp">Verified</span><?php endif; ?>
+                    <?php if ($d['file_path']): ?>
+                      <br><a class="small" href="document.php?id=<?= $d['id'] ?>" target="_blank" rel="noopener">View uploaded file →</a>
+                    <?php else: ?>
+                      <br><span class="small muted">Declared only — no file uploaded</span>
+                    <?php endif; ?>
                   </div>
                   <form method="post" class="inline-form"
-                        onsubmit="return confirm('Remove this document from the documents?')">
+                        onsubmit="return confirm('Remove this document?')">
                     <?= csrf_field() ?>
                     <input type="hidden" name="listing" value="<?= $id ?>">
                     <button class="btn btn-danger btn-sm" name="delete_doc" value="<?= $d['id'] ?>">Remove</button>
@@ -160,7 +202,7 @@ page_header('Documents — ' . $l['make'] . ' ' . $l['model'], 'sell');
             <?php endforeach; ?>
           </ul>
         <?php else: ?>
-          <p class="muted">Nothing attached yet. Start with the NCT cert and service history — they're the two things every buyer asks for first.</p>
+          <p class="muted">Nothing added yet. Start with the NCT cert or service history.</p>
         <?php endif; ?>
       </div>
     </div>
