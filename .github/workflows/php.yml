@@ -14,8 +14,22 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo_sqlite, fileinfo
+          extensions: pdo_sqlite, fileinfo, mbstring
       - name: Lint PHP
         run: find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
       - name: Run tests
         run: php tests/run.php
+      - name: Build demo database
+        run: php database/init.php --fresh
+      - name: Smoke test public pages
+        run: |
+          php -S 127.0.0.1:8080 -t public >/tmp/safetrade-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID' EXIT
+          sleep 1
+          for path in / /listings.php '/listing.php?id=1' /mechanics.php '/mechanic.php?id=1' /auctions.php '/auction.php?id=1' /safety.php /login.php /register.php; do
+            curl -fsS "http://127.0.0.1:8080$path" >/dev/null || {
+              cat /tmp/safetrade-server.log
+              exit 1
+            }
+          done
