@@ -22,6 +22,7 @@ $mechs = db_all(
             (SELECT COUNT(*) FROM mechanic_reviews r WHERE r.mechanic_id = mp.id) AS review_count
        FROM mechanic_profiles mp
        JOIN users u ON u.id = mp.user_id
+      WHERE mp.verified = 1
       ORDER BY avg_rating DESC
       LIMIT 2"
 );
