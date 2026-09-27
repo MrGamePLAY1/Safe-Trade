@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->exec('BEGIN IMMEDIATE');
 
         $fresh = db_row(
-            'SELECT a.status, a.ends_at, a.reserve_eur, l.user_id AS seller_id
+            'SELECT a.status, a.ends_at, a.reserve_eur, l.user_id AS seller_id, l.status AS listing_status
                FROM auctions a
                JOIN listings l ON l.id = a.listing_id
               WHERE a.id = ?',
@@ -60,6 +60,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $now = gmdate('Y-m-d H:i:s');
+        if ($fresh['listing_status'] !== 'live') {
+            db_exec("UPDATE auctions SET status = 'cancelled' WHERE id = ? AND status = 'open'", [$id]);
+            $pdo->exec('COMMIT');
+            flash('This auction is no longer available because the listing is not live.', 'warn');
+            redirect('auction.php?id=' . $id);
+        }
         if ($fresh['status'] !== 'open' || $fresh['ends_at'] <= $now) {
             db_exec("UPDATE auctions SET status = 'closed' WHERE id = ? AND status = 'open'", [$id]);
             $pdo->exec('COMMIT');
