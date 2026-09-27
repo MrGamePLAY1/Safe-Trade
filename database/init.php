@@ -168,17 +168,17 @@ echo "Mechanics seeded.\n";
 // --- inspections + reviews -------------------------------------------------
 $insp1 = insert($pdo, 'inspections', [
     'mechanic_id'=>$dara,'buyer_id'=>$niamh,'listing_id'=>$bmw,
-    'scheduled_for'=>gmgmdate('Y-m-d H:i:s', strtotime('-20 days')),'status'=>'completed',
+    'scheduled_for'=>gmdate('Y-m-d H:i:s', strtotime('-20 days')),'status'=>'completed',
     'message'=>'Viewing Saturday morning if you can make Cork?',
 ]);
 $insp2 = insert($pdo, 'inspections', [
     'mechanic_id'=>$sinead,'buyer_id'=>$conor,'listing_id'=>$corolla,
-    'scheduled_for'=>gmgmdate('Y-m-d H:i:s', strtotime('-9 days')),'status'=>'completed',
+    'scheduled_for'=>gmdate('Y-m-d H:i:s', strtotime('-9 days')),'status'=>'completed',
     'message'=>null,
 ]);
 insert($pdo, 'inspections', [
     'mechanic_id'=>$dara,'buyer_id'=>$aoife,'listing_id'=>$golf,
-    'scheduled_for'=>gmgmdate('Y-m-d H:i:s', strtotime('+3 days')),'status'=>'requested',
+    'scheduled_for'=>gmdate('Y-m-d H:i:s', strtotime('+3 days')),'status'=>'requested',
     'message'=>'Golf in Galway — could you travel, or recommend someone local?',
 ]);
 
