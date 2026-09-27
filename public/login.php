@@ -7,9 +7,17 @@ if (is_logged_in()) {
 
 $error = '';
 $next  = $_GET['next'] ?? $_POST['next'] ?? 'dashboard.php';
-// Only allow same-site relative redirects.
-if (!preg_match('~^[a-z0-9_\-]+\.php(\?.*)?$~i', $next)) {
+// Only allow same-site PHP routes. Reject scheme/host and normalise a leading slash.
+$parts = parse_url($next);
+if ($parts === false || isset($parts['scheme']) || isset($parts['host'])) {
     $next = 'dashboard.php';
+} else {
+    $path = ltrim($parts['path'] ?? '', '/');
+    $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+    $candidate = $path . $query;
+    $next = preg_match('~^[a-z0-9_\-]+\.php(?:\?[a-z0-9%&=_\-.]+)?$~i', $candidate)
+        ? $candidate
+        : 'dashboard.php';
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
